@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Open Sans', sans-serif;
+  background-color: #f0f2f5;
+}
+
+.logo-container {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.logo-text {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.logo-text-collapsed {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.stat-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card .ant-statistic-title {
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
+.stat-card .ant-statistic-content-value {
+  font-weight: 700;
+  color: #1B2A4A;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  color: #1B2A4A;
+  margin: 0;
+  font-weight: 700;
+}
+
+.page-header p {
+  color: #8c8c8c;
+  margin: 4px 0 0;
+}
+
+.content-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  margin-bottom: 16px;
+}
+
+.treasury-card {
+  border-radius: 8px;
+  text-align: center;
+  padding: 20px;
+  color: #ffffff;
+}
+
+.treasury-card.blue {
+  background: linear-gradient(135deg, #1B2A4A 0%, #2a3f6a 100%);
+}
+
+.treasury-card.orange {
+  background: linear-gradient(135deg, #F5A623 0%, #d4900e 100%);
+}
+
+.treasury-card.green {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+}
+
+.treasury-card.cyan {
+  background: linear-gradient(135deg, #13c2c2 0%, #08979c 100%);
+}

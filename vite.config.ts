@@ -7,11 +7,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-antd': ['antd', '@ant-design/icons'],
-          'vendor-charts': ['@ant-design/charts'],
-          'vendor-utils': ['axios', 'dayjs', 'xlsx'],
+        manualChunks: (id) => {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/antd') || id.includes('node_modules/@ant-design')) {
+            return 'vendor-antd';
+          }
+          if (id.includes('node_modules/axios') || id.includes('node_modules/dayjs') || id.includes('node_modules/xlsx')) {
+            return 'vendor-utils';
+          }
         },
       },
     },

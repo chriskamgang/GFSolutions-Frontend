@@ -167,7 +167,7 @@ export default function Login() {
 
         <div style={{ textAlign: 'center' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Global Financial Solution &copy; 2024
+            Global Financial Solution &copy; 2026
           </Text>
         </div>
       </Card>

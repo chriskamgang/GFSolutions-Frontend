@@ -1373,13 +1373,10 @@ export default function Clients() {
               <Form.Item name="phone" label="Telephone principal" rules={[{ required: true, validator: validatePhone }]} tooltip="Format camerounais : +237 suivi de 9 chiffres">
                 <Input
                   placeholder="+237 6XX XXX XXX"
-                  maxLength={16}
-                  addonBefore="+237"
+                  maxLength={17}
                   onChange={(e) => {
-                    let v = e.target.value.replace(/[^0-9]/g, '').slice(0, 9);
-                    if (v.length > 3) v = v.slice(0, 3) + ' ' + v.slice(3);
-                    if (v.length > 7) v = v.slice(0, 7) + ' ' + v.slice(7);
-                    form.setFieldsValue({ phone: '+237' + v.replace(/\s/g, '') });
+                    let raw = e.target.value.replace(/^\+?237/, '').replace(/[^0-9]/g, '').slice(0, 9);
+                    form.setFieldsValue({ phone: '+237' + raw });
                   }}
                 />
               </Form.Item>

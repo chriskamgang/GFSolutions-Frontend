@@ -8,8 +8,8 @@ import {
   PlusOutlined, CalculatorOutlined, UnorderedListOutlined,
   ClockCircleOutlined, DollarOutlined, PercentageOutlined,
   SafetyOutlined, BankOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  EyeOutlined, UserOutlined, DownloadOutlined, FilePdfOutlined,
-  RadarChartOutlined, FileProtectOutlined, RetweetOutlined,
+  EyeOutlined, DownloadOutlined, FilePdfOutlined,
+  RadarChartOutlined, RetweetOutlined,
   WarningOutlined, TrophyOutlined,
 } from '@ant-design/icons';
 import { Progress } from 'antd';
@@ -455,7 +455,6 @@ function DemandesTab() {
 // ===================== NOUVELLE DEMANDE TAB =====================
 function NouvelleDemandTab() {
   const [clients, setClients] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
@@ -627,7 +626,7 @@ function NouvelleDemandTab() {
 function AttenteTab() {
   const [credits, setCredits] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [detailModal, setDetailModal] = useState<any>(null);
+  const [_detailModal, setDetailModal] = useState<any>(null);
   const [commentForm] = Form.useForm();
 
   const fetchPending = async () => {
@@ -1266,7 +1265,7 @@ export default function Credits() {
       )}
 
       <Card style={{ borderRadius: 8 }}>
-        <Tabs items={tabItems} defaultActiveKey="simulateur" />
+        <Tabs items={tabItems.filter(Boolean) as any[]} defaultActiveKey="simulateur" />
       </Card>
     </div>
   );

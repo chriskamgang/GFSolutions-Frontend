@@ -3,7 +3,7 @@ import {
   Card, Table, Button, Tag, Space, Typography, Row, Col,
   Modal, Form, Input, Select, InputNumber, message,
   Alert, Descriptions, Avatar, Checkbox, Divider, Badge,
-  Dropdown, Steps, Image,
+  Dropdown, Steps,
 } from 'antd';
 import {
   PlusOutlined, SwapOutlined, UserOutlined,

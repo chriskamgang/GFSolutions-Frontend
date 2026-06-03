@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import {
   Card, Table, Button, Tag, Typography, Row, Col, message, Modal,
   Form, Input, Select, Space, Popconfirm, Statistic, Tabs, InputNumber,
-  Descriptions, Badge,
+  Descriptions,
 } from 'antd';
 import {
   PlusOutlined, CheckCircleOutlined, StopOutlined, ThunderboltOutlined,
-  SearchOutlined, DollarOutlined, UserOutlined, SettingOutlined,
-  WalletOutlined, ReloadOutlined,
+  UserOutlined, SettingOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
@@ -55,7 +55,7 @@ export default function Callbox() {
   const [createForm] = Form.useForm();
   const [topupForm] = Form.useForm();
   const [commForm] = Form.useForm();
-  const { canCreate, canUpdate } = usePermissions();
+  const { canCreate } = usePermissions();
 
   const fetchCallboxes = async () => {
     setLoading(true);

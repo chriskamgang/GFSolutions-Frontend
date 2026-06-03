@@ -903,7 +903,7 @@ function WhatsappTab({ canEdit }: { canEdit: boolean }) {
   const [testPhone, setTestPhone] = useState('');
   const [testing, setTesting] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchStatus = async () => {
     try {

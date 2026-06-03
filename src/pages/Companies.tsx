@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Table, Button, Tag, Typography, Row, Col, message, Modal, Form, Input, InputNumber, Space,
+  Card, Table, Button, Tag, Typography, Row, Col, message, Modal, Form, Input, InputNumber,
   Statistic, Descriptions, Tabs, Alert, Popconfirm,
 } from 'antd';
 import {
   PlusOutlined, BankOutlined, EyeOutlined, TeamOutlined, DollarOutlined,
-  SendOutlined, HistoryOutlined, DeleteOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -85,7 +84,7 @@ export default function Companies() {
     }
     try {
       setSubmitting(true);
-      const { data } = await api.post(`/companies/${selectedCompany.id}/salary-batch`, {
+      await api.post(`/companies/${selectedCompany.id}/salary-batch`, {
         payments: validPayments,
       });
       message.success(`Virement traite : ${validPayments.length} employe(s)`);

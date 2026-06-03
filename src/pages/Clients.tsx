@@ -10,7 +10,7 @@ import {
   EditOutlined, UserOutlined, DownloadOutlined,
   QrcodeOutlined, StopOutlined, CheckCircleOutlined,
   LockOutlined, FileExcelOutlined, BankOutlined,
-  TeamOutlined, DeleteOutlined, LinkOutlined,
+  TeamOutlined, DeleteOutlined,
   CameraOutlined, WarningOutlined, UploadOutlined,
   MergeCellsOutlined, SwapOutlined, MobileOutlined,
 } from '@ant-design/icons';
@@ -48,7 +48,7 @@ const REGIONS_CAMEROUN = [
 ];
 
 export default function Clients() {
-  const { canCreate, canUpdate, canDelete, isReadOnly } = usePermissions();
+  const { canCreate, canUpdate } = usePermissions();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -707,7 +707,7 @@ export default function Clients() {
             <Dropdown menu={{
               items: [
                 { key: 'mobile', icon: <MobileOutlined />, label: 'Activer acces mobile', onClick: () => handleActivateMobile(record.id) },
-                { type: 'divider' },
+                { type: 'divider' as const },
                 record.status !== 'ACTIVE' ? { key: 'activate', icon: <CheckCircleOutlined />, label: 'Reactiver', onClick: () => handleChangeStatus(record.id, 'ACTIVE') } : null,
                 record.status !== 'SUSPENDED' ? { key: 'suspend', icon: <StopOutlined />, label: 'Suspendre', danger: true, onClick: () => handleChangeStatus(record.id, 'SUSPENDED') } : null,
                 record.status !== 'BLOCKED' ? { key: 'block', icon: <LockOutlined />, label: 'Bloquer', danger: true, onClick: () => handleChangeStatus(record.id, 'BLOCKED') } : null,

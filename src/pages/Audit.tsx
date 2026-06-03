@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Table, Tag, Typography, Row, Col, message, Select, Space, Statistic, DatePicker, Input,
+  Card, Table, Tag, Typography, Row, Col, message, Select, Space, Statistic, DatePicker,
 } from 'antd';
 import {
-  AuditOutlined, UserOutlined, SearchOutlined, DownloadOutlined, FilePdfOutlined,
+  AuditOutlined, UserOutlined, DownloadOutlined, FilePdfOutlined,
 } from '@ant-design/icons';
 import { Button } from 'antd';
 import api from '../services/api';
@@ -11,7 +11,7 @@ import { exportToExcel, exportToPdf } from '../utils/exportUtils';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-const { RangePicker } = DatePicker;
+
 
 export default function Audit() {
   const [logs, setLogs] = useState<any[]>([]);

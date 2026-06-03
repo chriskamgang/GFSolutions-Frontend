@@ -24,7 +24,7 @@ export default function Accounts() {
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
-  const [datModalOpen, setDatModalOpen] = useState(false);
+  const [_datModalOpen, setDatModalOpen] = useState(false);
   const [datForm] = Form.useForm();
 
   const fetchAccounts = async (page = 1, limit = 10) => {
@@ -117,7 +117,7 @@ export default function Accounts() {
     }
   };
 
-  const handleCreateDAT = async () => {
+  const _handleCreateDAT = async () => {
     try {
       const values = await datForm.validateFields();
       await api.post('/accounts/savings', {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Card, Table, Button, Tag, Space, Typography, Row, Col,
   Modal, Form, Input, Select, InputNumber, message, Tabs,
-  Statistic, Divider, DatePicker, Badge, Popconfirm, Alert,
+  Statistic, DatePicker, Badge, Popconfirm, Alert,
 } from 'antd';
 import {
   ThunderboltOutlined, DropboxOutlined, PlayCircleOutlined,
@@ -57,7 +57,7 @@ export default function BillPayments() {
   const [activeTab, setActiveTab] = useState('payments');
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({ content: () => receiptRef.current });
+  const handlePrint = useReactToPrint({ contentRef: receiptRef });
 
   const fetchAll = async () => {
     setLoading(true);
@@ -374,14 +374,14 @@ export default function BillPayments() {
               <Form.Item name="amount" label="Montant de la facture (FCFA) *" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={1} step={500}
                   formatter={(v) => v ? Number(v).toLocaleString('fr-FR') : ''}
-                  parser={(v) => v ? v.replace(/\s?/g, '') : ''} placeholder="24 500" />
+                  parser={(v) => (v ? Number(v.replace(/\s/g, '')) : 0) as any} placeholder="24 500" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="fees" label="Frais de service GFS (FCFA)">
                 <InputNumber style={{ width: '100%' }} min={0} step={100}
                   formatter={(v) => v ? Number(v).toLocaleString('fr-FR') : ''}
-                  parser={(v) => v ? v.replace(/\s?/g, '') : ''} placeholder="500" />
+                  parser={(v) => (v ? Number(v.replace(/\s/g, '')) : 0) as any} placeholder="500" />
               </Form.Item>
             </Col>
           </Row>

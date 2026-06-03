@@ -4,7 +4,6 @@ import {
   DashboardOutlined,
   TeamOutlined,
   BankOutlined,
-  TransactionOutlined,
   WalletOutlined,
   SafetyOutlined,
   ApartmentOutlined,

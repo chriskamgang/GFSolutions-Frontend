@@ -4,7 +4,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
 
-const _fmt = (v: number) => v.toLocaleString('fr-FR');
 
 // ==================== EXCEL ====================
 

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   Card, Table, Button, Tag, Typography, Row, Col, message,
-  Modal, Descriptions, Tabs, Select, Space, Statistic, Form,
-  InputNumber, DatePicker, Input,
+  Modal, Descriptions, Select, Space, Statistic,
 } from 'antd';
 import {
-  EyeOutlined, BankOutlined, PlusOutlined, DownloadOutlined,
+  EyeOutlined, BankOutlined, DownloadOutlined,
   FileExcelOutlined, WalletOutlined,
 } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
@@ -24,8 +23,6 @@ export default function Accounts() {
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [txLoading, setTxLoading] = useState(false);
-  const [_datModalOpen, setDatModalOpen] = useState(false);
-  const [datForm] = Form.useForm();
 
   const fetchAccounts = async (page = 1, limit = 10) => {
     setLoading(true);
@@ -114,23 +111,6 @@ export default function Accounts() {
       message.success(`${rows.length} comptes exportes`);
     } catch {
       message.error('Erreur export');
-    }
-  };
-
-  const _handleCreateDAT = async () => {
-    try {
-      const values = await datForm.validateFields();
-      await api.post('/accounts/savings', {
-        clientId: values.clientId,
-        agencyId: values.agencyId || undefined,
-        interestRate: values.interestRate,
-      });
-      message.success('Compte DAT cree avec succes');
-      setDatModalOpen(false);
-      datForm.resetFields();
-      fetchAccounts(pagination.current);
-    } catch (err: any) {
-      if (err.response?.data?.message) message.error(err.response.data.message);
     }
   };
 

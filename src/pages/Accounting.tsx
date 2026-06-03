@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   AuditOutlined, BookOutlined, BarChartOutlined, FileTextOutlined,
-  DollarOutlined, LockOutlined, PlusOutlined, CheckCircleOutlined,
+  LockOutlined, PlusOutlined, CheckCircleOutlined,
   DownloadOutlined, FilePdfOutlined, BankOutlined, FundOutlined, SwapOutlined,
   ContainerOutlined, ReconciliationOutlined,
 } from '@ant-design/icons';

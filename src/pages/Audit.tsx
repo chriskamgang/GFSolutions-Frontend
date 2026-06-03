@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Table, Tag, Typography, Row, Col, message, Select, Space, Statistic, DatePicker,
+  Card, Table, Tag, Typography, Row, Col, message, Select, Space, Statistic,
 } from 'antd';
 import {
   AuditOutlined, UserOutlined, DownloadOutlined, FilePdfOutlined,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card, Typography, Descriptions, Tabs, Button, message, Input, Space, Alert, Tag, Row, Col, Statistic,
   Table, Modal, Form, InputNumber, Switch, Spin, Divider, Select,
@@ -7,6 +7,8 @@ import {
   SettingOutlined, SafetyOutlined, ClockCircleOutlined,
   CheckCircleOutlined, LockOutlined, LogoutOutlined,
   DollarOutlined, ShoppingOutlined, PlusOutlined, EditOutlined,
+  MessageOutlined, SendOutlined, EyeInvisibleOutlined, EyeOutlined,
+  WhatsAppOutlined, ReloadOutlined, DisconnectOutlined, MobileOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -761,6 +763,304 @@ function SecurityTab() {
   );
 }
 
+// ===================== SMS CONFIG =====================
+function SmsTab({ canEdit }: { canEdit: boolean }) {
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [configured, setConfigured] = useState(false);
+
+  const fetchSmsConfig = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/settings/sms');
+      form.setFieldsValue({ user: data.user, senderId: data.senderId, enabled: data.enabled });
+      setConfigured(data.passwordConfigured);
+    } catch {
+      message.error('Impossible de charger la config SMS');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchSmsConfig(); }, []);
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+      setSaving(true);
+      await api.post('/settings/sms', values);
+      message.success('Configuration SMS sauvegardee');
+      setConfigured(true);
+      if (values.password) form.setFieldValue('password', '');
+    } catch (err: any) {
+      if (err.response) message.error(err.response?.data?.message || 'Erreur sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    const values = form.getFieldsValue();
+    if (!values.testPhone) { message.warning('Entrez un numero de telephone pour le test'); return; }
+    setTesting(true);
+    try {
+      const { data } = await api.post('/settings/sms/test', { phone: values.testPhone });
+      if (data.success) message.success('SMS de test envoye !');
+      else message.error('Echec envoi SMS de test');
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur lors du test SMS');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>;
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 24 }}
+        message="Fournisseur SMS : NEXAH (smsvas.com)"
+        description={
+          <span>
+            Creez un compte sur <strong>smsvas.com</strong> pour obtenir vos identifiants.
+            Ces credentials permettent d'envoyer les SMS d'activation aux clients.
+          </span>
+        }
+      />
+
+      <div style={{ marginBottom: 16 }}>
+        <Tag icon={<CheckCircleOutlined />} color={configured ? 'green' : 'default'}>
+          {configured ? 'Credentials configures' : 'Non configure'}
+        </Tag>
+      </div>
+
+      <Form form={form} layout="vertical">
+        <Form.Item name="enabled" label="Activer les SMS" valuePropName="checked" initialValue={true}>
+          <Switch checkedChildren="Actif" unCheckedChildren="Inactif" disabled={!canEdit} />
+        </Form.Item>
+
+        <Form.Item name="user" label="Identifiant NEXAH (user)"
+          rules={[{ required: true, message: 'Identifiant requis' }]}>
+          <Input prefix={<MessageOutlined />} placeholder="Votre identifiant smsvas.com" disabled={!canEdit} />
+        </Form.Item>
+
+        <Form.Item
+          name="password"
+          label={configured ? 'Nouveau mot de passe (laisser vide pour ne pas changer)' : 'Mot de passe NEXAH'}
+          rules={!configured ? [{ required: true, message: 'Mot de passe requis' }] : []}
+        >
+          <Input
+            type={showPwd ? 'text' : 'password'}
+            placeholder={configured ? '••••••••' : 'Mot de passe smsvas.com'}
+            disabled={!canEdit}
+            suffix={
+              <span style={{ cursor: 'pointer' }} onClick={() => setShowPwd(!showPwd)}>
+                {showPwd ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              </span>
+            }
+          />
+        </Form.Item>
+
+        <Form.Item name="senderId" label="Expediteur (Sender ID)" initialValue="GFS"
+          rules={[{ required: true, message: 'Expediteur requis' }, { max: 11, message: 'Max 11 caracteres' }]}>
+          <Input placeholder="Ex: GFS (max 11 car.)" disabled={!canEdit} />
+        </Form.Item>
+
+        {canEdit && (
+          <Form.Item>
+            <Button type="primary" icon={<CheckCircleOutlined />} loading={saving} onClick={handleSave} style={{ marginRight: 12 }}>
+              Sauvegarder
+            </Button>
+          </Form.Item>
+        )}
+
+        <Divider>Test de la configuration</Divider>
+
+        <Form.Item name="testPhone" label="Numero de telephone pour test (+237XXXXXXXXX)">
+          <Input placeholder="+237 6XX XXX XXX" style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Button icon={<SendOutlined />} loading={testing} onClick={handleTest} disabled={!configured}>
+          Envoyer un SMS de test
+        </Button>
+      </Form>
+    </div>
+  );
+}
+
+// ===================== WHATSAPP =====================
+function WhatsappTab({ canEdit }: { canEdit: boolean }) {
+  const [status, setStatus] = useState<'disconnected' | 'connecting' | 'qr_pending' | 'connected'>('disconnected');
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchStatus = async () => {
+    try {
+      const { data } = await api.get('/whatsapp/status');
+      setStatus(data.status);
+      setQrCode(data.qrCode);
+      setStatusMsg(data.message);
+    } catch { /* silencieux */ }
+  };
+
+  // Poll toutes les 3s tant que non connecte
+  useEffect(() => {
+    fetchStatus();
+    pollRef.current = setInterval(() => {
+      if (status !== 'connected') fetchStatus();
+    }, 3000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [status]);
+
+  const handleReconnect = async () => {
+    setReconnecting(true);
+    try {
+      await api.post('/whatsapp/reconnect');
+      message.info('Reconnexion lancee — le QR Code va apparaitre dans quelques secondes');
+      setTimeout(fetchStatus, 2000);
+    } catch { message.error('Erreur reconnexion'); }
+    finally { setReconnecting(false); }
+  };
+
+  const handleDisconnect = async () => {
+    setLoading(true);
+    try {
+      await api.post('/whatsapp/disconnect');
+      message.success('WhatsApp deconnecte');
+      setStatus('disconnected');
+      setQrCode(null);
+    } catch { message.error('Erreur deconnexion'); }
+    finally { setLoading(false); }
+  };
+
+  const handleTest = async () => {
+    if (!testPhone) { message.warning('Entrez un numero pour le test'); return; }
+    setTesting(true);
+    try {
+      const { data } = await api.post('/whatsapp/test', { phone: testPhone });
+      if (data.success) message.success('Message WhatsApp envoye !');
+      else message.error('Echec — ' + data.message);
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur test WhatsApp');
+    } finally { setTesting(false); }
+  };
+
+  const statusColor: Record<string, string> = {
+    connected: 'green',
+    qr_pending: 'orange',
+    connecting: 'blue',
+    disconnected: 'red',
+  };
+
+  const statusIcon: Record<string, React.ReactNode> = {
+    connected: <CheckCircleOutlined />,
+    qr_pending: <MobileOutlined />,
+    connecting: <ReloadOutlined spin />,
+    disconnected: <DisconnectOutlined />,
+  };
+
+  return (
+    <div>
+      <Alert
+        type="info"
+        showIcon
+        icon={<WhatsAppOutlined />}
+        style={{ marginBottom: 24 }}
+        message="WhatsApp Business via Baileys"
+        description="Connectez un numero WhatsApp pour envoyer les identifiants clients, alertes de transactions et notifications directement sur WhatsApp. Scannez le QR Code avec le telephone qui sera le numero expediteur GFS."
+      />
+
+      {/* Statut */}
+      <Card size="small" style={{ marginBottom: 20, borderRadius: 10 }}>
+        <Row align="middle" gutter={16}>
+          <Col>
+            <Tag color={statusColor[status]} icon={statusIcon[status]} style={{ fontSize: 14, padding: '4px 12px' }}>
+              {statusMsg || status}
+            </Tag>
+          </Col>
+          <Col flex="auto" />
+          <Col>
+            <Space>
+              <Button icon={<ReloadOutlined />} size="small" onClick={fetchStatus}>Actualiser</Button>
+              {canEdit && status !== 'connected' && (
+                <Button type="primary" icon={<ReloadOutlined />} size="small" loading={reconnecting} onClick={handleReconnect}
+                  style={{ background: '#25D366', borderColor: '#25D366' }}>
+                  Connecter / Nouveau QR
+                </Button>
+              )}
+              {canEdit && status === 'connected' && (
+                <Button danger size="small" icon={<DisconnectOutlined />} loading={loading} onClick={handleDisconnect}>
+                  Deconnecter
+                </Button>
+              )}
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* QR Code */}
+      {status === 'qr_pending' && qrCode && (
+        <Card size="small" style={{ marginBottom: 20, borderRadius: 10, textAlign: 'center', background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+          <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
+            <MobileOutlined /> Ouvrez WhatsApp sur votre telephone → Menu → Appareils lies → Lier un appareil → Scannez ce QR Code
+          </Text>
+          <img src={qrCode} alt="QR Code WhatsApp" style={{ width: 260, height: 260, borderRadius: 8 }} />
+          <Text type="secondary" style={{ display: 'block', marginTop: 12, fontSize: 12 }}>
+            Ce QR Code se regenere automatiquement. Actualisez si expire.
+          </Text>
+        </Card>
+      )}
+
+      {/* Test */}
+      {status === 'connected' && (
+        <Card size="small" title={<span><SendOutlined /> Test d'envoi</span>} style={{ marginBottom: 20, borderRadius: 10 }}>
+          <Space>
+            <Input
+              placeholder="+237 6XX XXX XXX"
+              value={testPhone}
+              onChange={e => setTestPhone(e.target.value)}
+              style={{ width: 220 }}
+            />
+            <Button
+              icon={<WhatsAppOutlined />}
+              loading={testing}
+              onClick={handleTest}
+              style={{ background: '#25D366', borderColor: '#25D366', color: 'white' }}
+            >
+              Envoyer un message test
+            </Button>
+          </Space>
+        </Card>
+      )}
+
+      <Alert
+        type="warning"
+        showIcon
+        message="Remarques importantes"
+        description={
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+            <li>Le numero WhatsApp connecte doit rester actif sur le telephone.</li>
+            <li>Si le telephone est deconnecte de WhatsApp Web, re-scannez le QR Code.</li>
+            <li>Utilisez un numero dedié GFS (pas le numero personnel d'un employe).</li>
+            <li>La session est sauvegardee sur le serveur — pas besoin de re-scanner apres un redemarrage.</li>
+          </ul>
+        }
+      />
+    </div>
+  );
+}
+
 // ===================== PAGE PRINCIPALE =====================
 export default function Settings() {
   const { canUpdate, isReadOnly } = usePermissions();
@@ -822,6 +1122,16 @@ export default function Settings() {
             onRefresh={fetchSettings}
             canEdit={canEdit}
           />,
+    },
+    {
+      key: 'sms',
+      label: <span><MessageOutlined /> SMS Nexah</span>,
+      children: <SmsTab canEdit={canEdit} />,
+    },
+    {
+      key: 'whatsapp',
+      label: <span><WhatsAppOutlined style={{ color: '#25D366' }} /> WhatsApp</span>,
+      children: <WhatsappTab canEdit={canEdit} />,
     },
     {
       key: 'security',

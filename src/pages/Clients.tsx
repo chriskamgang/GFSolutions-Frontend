@@ -12,7 +12,7 @@ import {
   LockOutlined, FileExcelOutlined, BankOutlined,
   TeamOutlined, DeleteOutlined, LinkOutlined,
   CameraOutlined, WarningOutlined, UploadOutlined,
-  MergeCellsOutlined, SwapOutlined,
+  MergeCellsOutlined, SwapOutlined, MobileOutlined,
 } from '@ant-design/icons';
 import { QRCodeSVG } from 'qrcode.react';
 import * as XLSX from 'xlsx';
@@ -99,6 +99,9 @@ export default function Clients() {
   const [searchPhysique, setSearchPhysique] = useState('');
   const [physiquesFound, setPhysiquesFound] = useState<any[]>([]);
   const [mandataires, setMandataires] = useState<any[]>([]);
+
+  // Activation acces mobile
+  const [activatingMobile, setActivatingMobile] = useState(false);
 
   // Import CSV
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -302,6 +305,18 @@ export default function Clients() {
   const handleShowQR = (record: any) => {
     setSelectedClient(record);
     setQrModalOpen(true);
+  };
+
+  const handleActivateMobile = async (clientId: string) => {
+    setActivatingMobile(true);
+    try {
+      const { data } = await api.post(`/clients/${clientId}/activate-mobile`);
+      message.success(`Acces mobile active ! SMS envoye au ${data.phone}`);
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur activation acces mobile');
+    } finally {
+      setActivatingMobile(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -691,6 +706,8 @@ export default function Clients() {
           {canUpdate('CLIENTS') && (
             <Dropdown menu={{
               items: [
+                { key: 'mobile', icon: <MobileOutlined />, label: 'Activer acces mobile', onClick: () => handleActivateMobile(record.id) },
+                { type: 'divider' },
                 record.status !== 'ACTIVE' ? { key: 'activate', icon: <CheckCircleOutlined />, label: 'Reactiver', onClick: () => handleChangeStatus(record.id, 'ACTIVE') } : null,
                 record.status !== 'SUSPENDED' ? { key: 'suspend', icon: <StopOutlined />, label: 'Suspendre', danger: true, onClick: () => handleChangeStatus(record.id, 'SUSPENDED') } : null,
                 record.status !== 'BLOCKED' ? { key: 'block', icon: <LockOutlined />, label: 'Bloquer', danger: true, onClick: () => handleChangeStatus(record.id, 'BLOCKED') } : null,
@@ -1417,7 +1434,19 @@ export default function Clients() {
         title={selectedClient ? `${getDisplayName(selectedClient)} — Vue 360` : 'Detail client'}
         open={detailOpen}
         onCancel={() => setDetailOpen(false)}
-        footer={[<Button key="close" onClick={() => setDetailOpen(false)}>Fermer</Button>]}
+        footer={[
+          <Button
+            key="activate"
+            type="primary"
+            icon={<MobileOutlined />}
+            loading={activatingMobile}
+            onClick={() => selectedClient && handleActivateMobile(selectedClient.id)}
+            style={{ background: '#52c41a', borderColor: '#52c41a' }}
+          >
+            Activer acces mobile
+          </Button>,
+          <Button key="close" onClick={() => setDetailOpen(false)}>Fermer</Button>,
+        ]}
         width={950}
       >
         {selectedClient && <Tabs items={renderDetailTabs() as any} />}

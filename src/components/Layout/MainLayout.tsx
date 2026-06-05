@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Badge, Typography, Tag, Tooltip, List, Empty, Button as AntButton } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Badge, Typography, Tag, Tooltip, List, Empty, Button as AntButton, Modal, Descriptions, Form, Input, message } from 'antd';
 import {
   DashboardOutlined,
   TeamOutlined,
@@ -27,6 +27,7 @@ import {
   NotificationOutlined,
   AimOutlined,
   ThunderboltOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -43,10 +44,31 @@ const { Text } = Typography;
 
 export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pwdForm] = Form.useForm();
+  const [changingPwd, setChangingPwd] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, remainingTime } = useAuth();
   const { canAccessRoute } = usePermissions();
+
+  const handleChangePassword = async () => {
+    try {
+      const values = await pwdForm.validateFields();
+      if (values.newPassword !== values.confirm) {
+        message.error('Les mots de passe ne correspondent pas');
+        return;
+      }
+      setChangingPwd(true);
+      await api.patch('/auth/change-password', { oldPassword: values.oldPassword, newPassword: values.newPassword });
+      message.success('Mot de passe modifie avec succes');
+      pwdForm.resetFields();
+    } catch (err: any) {
+      if (err.response?.data?.message) message.error(err.response.data.message);
+    } finally {
+      setChangingPwd(false);
+    }
+  };
   const [displayTime, setDisplayTime] = useState('');
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -263,6 +285,11 @@ export default function MainLayout() {
   const userMenu = {
     items: [
       {
+        key: 'profile',
+        icon: <IdcardOutlined />,
+        label: 'Mon profil & identifiants',
+      },
+      {
         key: 'settings',
         icon: <SettingOutlined />,
         label: 'Parametres & Securite',
@@ -278,6 +305,7 @@ export default function MainLayout() {
     onClick: ({ key }: { key: string }) => {
       if (key === 'logout') logout();
       if (key === 'settings') navigate('/settings');
+      if (key === 'profile') setProfileOpen(true);
     },
   };
 
@@ -442,5 +470,51 @@ export default function MainLayout() {
         </Content>
       </Layout>
     </Layout>
+
+    {/* Modal profil admin */}
+    <Modal
+      title={<span><IdcardOutlined style={{ marginRight: 8 }} />Mon profil & identifiants</span>}
+      open={profileOpen}
+      onCancel={() => { setProfileOpen(false); pwdForm.resetFields(); }}
+      footer={null}
+      width={480}
+    >
+      {user && (
+        <>
+          <Descriptions bordered column={1} size="small" style={{ marginBottom: 24 }}>
+            <Descriptions.Item label="Nom complet">
+              <strong>{user.firstName} {user.lastName}</strong>
+            </Descriptions.Item>
+            <Descriptions.Item label="Email / Identifiant">
+              <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>{user.email}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Role">
+              <Tag color="geekblue">{user.role}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Agence">{user.agency || '-'}</Descriptions.Item>
+          </Descriptions>
+
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 12 }}>
+              <LockOutlined style={{ marginRight: 6 }} />Changer le mot de passe
+            </Text>
+            <Form form={pwdForm} layout="vertical" size="small">
+              <Form.Item name="oldPassword" label="Mot de passe actuel" rules={[{ required: true }]}>
+                <Input.Password placeholder="Mot de passe actuel" />
+              </Form.Item>
+              <Form.Item name="newPassword" label="Nouveau mot de passe" rules={[{ required: true, min: 6 }]}>
+                <Input.Password placeholder="Minimum 6 caracteres" />
+              </Form.Item>
+              <Form.Item name="confirm" label="Confirmer" rules={[{ required: true }]}>
+                <Input.Password placeholder="Repeter le nouveau mot de passe" />
+              </Form.Item>
+              <AntButton type="primary" loading={changingPwd} onClick={handleChangePassword} block>
+                Modifier le mot de passe
+              </AntButton>
+            </Form>
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }

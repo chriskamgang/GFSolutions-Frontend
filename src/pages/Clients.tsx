@@ -307,7 +307,26 @@ export default function Clients() {
     setActivatingMobile(true);
     try {
       const { data } = await api.post(`/clients/${clientId}/activate-mobile`);
-      message.success(`Acces mobile active ! SMS envoye au ${data.phone}`);
+      Modal.success({
+        title: 'Acces mobile active',
+        width: 420,
+        content: (
+          <div>
+            <p style={{ marginBottom: 16 }}>{data.message}</p>
+            <div style={{ background: '#f6f8ff', border: '1px solid #d6e4ff', borderRadius: 8, padding: '16px 20px' }}>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ color: '#888', fontSize: 12 }}>Identifiant</span>
+                <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: 1 }}>{data.clientNumber}</div>
+              </div>
+              <div>
+                <span style={{ color: '#888', fontSize: 12 }}>Mot de passe temporaire</span>
+                <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: 2, color: '#1B2A4A' }}>{data.password}</div>
+              </div>
+            </div>
+            <p style={{ marginTop: 12, fontSize: 12, color: '#888' }}>Ces identifiants ont ete envoyes par SMS au {data.phone}. Le client devra changer son mot de passe a la premiere connexion.</p>
+          </div>
+        ),
+      });
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Erreur activation acces mobile');
     } finally {

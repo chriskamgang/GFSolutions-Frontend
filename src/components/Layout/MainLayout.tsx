@@ -310,6 +310,7 @@ export default function MainLayout() {
   };
 
   return (
+    <>
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
         trigger={null}
@@ -472,6 +473,7 @@ export default function MainLayout() {
     </Layout>
 
     {/* Modal profil admin */}
+
     <Modal
       title={<span><IdcardOutlined style={{ marginRight: 8 }} />Mon profil & identifiants</span>}
       open={profileOpen}
@@ -516,5 +518,6 @@ export default function MainLayout() {
         </>
       )}
     </Modal>
+    </>
   );
 }

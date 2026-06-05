@@ -167,10 +167,6 @@ export default function Clients() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
       setWebcamOpen(true);
     } catch {
       message.error('Impossible d\'acceder a la camera. Verifiez les permissions.');
@@ -1778,6 +1774,12 @@ export default function Clients() {
         title={<span><CameraOutlined /> Capture photo biometrique</span>}
         open={webcamOpen}
         onCancel={stopWebcam}
+        afterOpenChange={(open) => {
+          if (open && streamRef.current && videoRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+            videoRef.current.play();
+          }
+        }}
         footer={[
           <Button key="cancel" onClick={stopWebcam}>Annuler</Button>,
           <Button key="capture" type="primary" icon={<CameraOutlined />} onClick={capturePhoto}>

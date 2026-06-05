@@ -843,6 +843,51 @@ export default function Clients() {
           </Form.Item>
         </Col>
       </Row>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item name="nomPere" label="Nom du pere">
+            <Input placeholder="Nom et prenom du pere" />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item name="nomMere" label="Nom de la mere">
+            <Input placeholder="Nom et prenom de la mere" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item name="niu" label="NIU (N° Identification Unique)">
+            <Input placeholder="Numero d'identification unique" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Divider style={{ margin: '12px 0' }}>Personne a contacter en cas d'urgence</Divider>
+      <Row gutter={16}>
+        <Col span={10}>
+          <Form.Item name="contactUrgenceNom" label="Nom complet">
+            <Input placeholder="Nom et prenom" />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item name="contactUrgencePhone" label="Telephone">
+            <Input placeholder="+237..." />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item name="contactUrgenceLien" label="Lien">
+            <Select allowClear placeholder="Lien">
+              <Select.Option value="Epoux/Epouse">Epoux/Epouse</Select.Option>
+              <Select.Option value="Pere">Pere</Select.Option>
+              <Select.Option value="Mere">Mere</Select.Option>
+              <Select.Option value="Frere/Soeur">Frere/Soeur</Select.Option>
+              <Select.Option value="Enfant">Enfant</Select.Option>
+              <Select.Option value="Ami(e)">Ami(e)</Select.Option>
+              <Select.Option value="Autre">Autre</Select.Option>
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
 
       {/* Donnees biometriques : Photo + Signature */}
       <Divider style={{ margin: '12px 0' }}>Donnees biometriques</Divider>
@@ -1010,6 +1055,13 @@ export default function Clients() {
         <Col span={12}>
           <Form.Item name="identifiantFiscal" label="Identifiant fiscal (NIF)">
             <Input placeholder="Numero de contribuable" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item name="niu" label="NIU (N° Identification Unique)">
+            <Input placeholder="Numero d'identification unique" />
           </Form.Item>
         </Col>
       </Row>
@@ -1425,6 +1477,16 @@ export default function Clients() {
               </Form.Item>
             </Col>
           </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="arrondissement" label="Arrondissement">
+                <Input placeholder="Ex: Douala 1er, Yaounde 2eme..." />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="planLocalisation" label="Plan de localisation (description ou lien)">
+            <Input.TextArea rows={2} placeholder="Ex: Rue Centrale, derriere le marche, 2eme maison rouge a gauche..." />
+          </Form.Item>
         </Form>
       </Modal>
 

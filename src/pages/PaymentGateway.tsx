@@ -460,7 +460,7 @@ export default function PaymentGateway() {
             <Input.TextArea rows={2} placeholder="Activite du marchand..." />
           </Form.Item>
 
-          <Divider orientation="left" style={{ fontSize: 13, color: '#1B2A4A' }}>Compte & Agence</Divider>
+          <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>Compte & Agence</Divider>
           <Row gutter={16}>
             <Col span={14}>
               <Form.Item name="accountId" label="Compte GFS recepteur" rules={[{ required: true }]}
@@ -477,7 +477,7 @@ export default function PaymentGateway() {
             </Col>
           </Row>
 
-          <Divider orientation="left" style={{ fontSize: 13, color: '#1B2A4A' }}>Commission & Webhooks</Divider>
+          <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>Commission & Webhooks</Divider>
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="commissionPct" label="Commission GFS (%)" initialValue={0}
@@ -619,7 +619,7 @@ export default function PaymentGateway() {
             <Input.TextArea rows={2} />
           </Form.Item>
 
-          <Divider orientation="left" style={{ fontSize: 13, color: '#1B2A4A' }}>
+          <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>
             <PercentageOutlined /> Commission
           </Divider>
           <Form.Item
@@ -641,7 +641,7 @@ export default function PaymentGateway() {
             message={`Exemple : pour un paiement de 10 000 FCFA avec 1,5% de commission, GFS prelevent 150 FCFA de frais.`}
           />
 
-          <Divider orientation="left" style={{ fontSize: 13, color: '#1B2A4A' }}>Webhooks & Redirections</Divider>
+          <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>Webhooks & Redirections</Divider>
           <Form.Item name="webhookUrl" label="URL Webhook">
             <Input placeholder="https://monsite.cm/api/gfs-callback" />
           </Form.Item>

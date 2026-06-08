@@ -80,7 +80,7 @@ function AppRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="bill-payments" element={<BillPayments />} />
         <Route path="callbox" element={<ProtectedRoute permission="USERS:READ"><Callbox /></ProtectedRoute>} />
-        <Route path="payment-gateway" element={<ProtectedRoute permission="SETTINGS:UPDATE"><PaymentGateway /></ProtectedRoute>} />
+        <Route path="payment-gateway" element={<PrivateRoute><PaymentGateway /></PrivateRoute>} />
       </Route>
     </Routes>
   );

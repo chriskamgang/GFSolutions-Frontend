@@ -27,6 +27,7 @@ import SavingsGoals from './pages/SavingsGoals';
 import Notifications from './pages/Notifications';
 import BillPayments from './pages/BillPayments';
 import Callbox from './pages/Callbox';
+import PaymentGateway from './pages/PaymentGateway';
 import './styles/global.css';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="bill-payments" element={<BillPayments />} />
         <Route path="callbox" element={<ProtectedRoute permission="USERS:READ"><Callbox /></ProtectedRoute>} />
+        <Route path="payment-gateway" element={<ProtectedRoute permission="SETTINGS:MANAGE"><PaymentGateway /></ProtectedRoute>} />
       </Route>
     </Routes>
   );

@@ -9,7 +9,7 @@ import {
   PlusOutlined, SwapOutlined, UserOutlined,
   SafetyOutlined, ExclamationCircleOutlined, BankOutlined,
   CheckCircleOutlined, DownloadOutlined, FilePdfOutlined,
-  FileProtectOutlined,
+  FileProtectOutlined, MobileOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
@@ -47,6 +47,13 @@ export default function Transactions() {
   const [selectedRetraitCheque, setSelectedRetraitCheque] = useState<any>(null);
   const [retraitVerified, setRetraitVerified] = useState(false);
   const [retraitLoading, setRetraitLoading] = useState(false);
+
+  // Mobile Money (pawaPay) state
+  const [mmModalOpen, setMmModalOpen] = useState(false);
+  const [mmType, setMmType] = useState<'deposit' | 'payout'>('deposit');
+  const [mmLoading, setMmLoading] = useState(false);
+  const [mmResult, setMmResult] = useState<any>(null);
+  const [mmForm] = Form.useForm();
 
   // Signataire modal state
   const [signataireModalOpen, setSignataireModalOpen] = useState(false);
@@ -274,6 +281,33 @@ export default function Transactions() {
     }
   };
 
+  const handleMmSubmit = async () => {
+    try {
+      const values = await mmForm.validateFields();
+      setMmLoading(true);
+      const agencyId = JSON.parse(localStorage.getItem('user') || '{}').agencyId;
+      const endpoint = mmType === 'deposit' ? '/pawapay/deposit' : '/pawapay/payout';
+      const body: any = {
+        accountId: values.accountId,
+        amount: values.amount,
+        phone: values.phone,
+        provider: values.provider,
+        agencyId,
+        description: values.description,
+      };
+      const { data } = await api.post(endpoint, body);
+      setMmResult(data);
+      mmForm.resetFields();
+      fetchTransactions();
+      fetchAccounts();
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : msg || 'Erreur Mobile Money');
+    } finally {
+      setMmLoading(false);
+    }
+  };
+
   const typeLabels: Record<string, string> = {
     DEPOSIT: 'Depot', WITHDRAWAL: 'Retrait', TRANSFER: 'Transfert',
     FEE: 'Frais', INTEREST: 'Interet', LOAN_DISBURSEMENT: 'Decaissement',
@@ -327,6 +361,15 @@ export default function Transactions() {
       render: (_: any, r: any) => r.signataireVerifie ? (
         <Badge status="success" text="Verifie" />
       ) : null,
+    },
+    {
+      title: 'Canal', key: 'canal', width: 110,
+      render: (_: any, r: any) => {
+        if (r.mobileMoneyProvider === 'MTN_MOMO') return <Tag color="gold" icon={<MobileOutlined />}>MTN MoMo</Tag>;
+        if (r.mobileMoneyProvider === 'ORANGE_MONEY') return <Tag color="orange" icon={<MobileOutlined />}>Orange Money</Tag>;
+        if (r.mobileMoneyProvider === 'EXPRESS_UNION') return <Tag color="purple" icon={<MobileOutlined />}>Express Union</Tag>;
+        return <Tag>Especes</Tag>;
+      },
     },
     {
       title: 'Statut', dataIndex: 'status', key: 'status',
@@ -397,6 +440,26 @@ export default function Transactions() {
                     <Button icon={<SwapOutlined />}>Retrait</Button>
                   </Dropdown>
                   <Button onClick={() => handleOpenTx('transfer')}>Transfert</Button>
+                  <Dropdown
+                    menu={{
+                      items: [
+                        {
+                          key: 'mm-deposit',
+                          label: 'Depot Mobile Money',
+                          icon: <MobileOutlined />,
+                          onClick: () => { setMmType('deposit'); setMmResult(null); mmForm.resetFields(); setMmModalOpen(true); },
+                        },
+                        {
+                          key: 'mm-payout',
+                          label: 'Retrait Mobile Money',
+                          icon: <MobileOutlined />,
+                          onClick: () => { setMmType('payout'); setMmResult(null); mmForm.resetFields(); setMmModalOpen(true); },
+                        },
+                      ],
+                    }}
+                  >
+                    <Button icon={<MobileOutlined />} style={{ borderColor: '#F5A623', color: '#F5A623' }}>Mobile Money</Button>
+                  </Dropdown>
                 </>
               )}
             </Space>
@@ -862,6 +925,96 @@ export default function Transactions() {
               </Button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Modal Mobile Money (pawaPay) */}
+      <Modal
+        title={
+          <Space>
+            <MobileOutlined style={{ color: '#F5A623', fontSize: 20 }} />
+            <span>{mmType === 'deposit' ? 'Depot Mobile Money' : 'Retrait Mobile Money'}</span>
+          </Space>
+        }
+        open={mmModalOpen}
+        onCancel={() => { setMmModalOpen(false); setMmResult(null); }}
+        footer={mmResult ? [
+          <Button key="close" type="primary" onClick={() => { setMmModalOpen(false); setMmResult(null); }}>Fermer</Button>,
+        ] : [
+          <Button key="cancel" onClick={() => setMmModalOpen(false)}>Annuler</Button>,
+          <Button key="ok" type="primary" loading={mmLoading} onClick={handleMmSubmit}
+            style={{ background: '#F5A623', borderColor: '#F5A623' }}
+            icon={<MobileOutlined />}>
+            Envoyer la demande
+          </Button>,
+        ]}
+        width={520}
+        destroyOnClose
+      >
+        {mmResult ? (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 16 }} />
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#1B2A4A', marginBottom: 8 }}>
+              Demande envoyee avec succes
+            </div>
+            <div style={{ color: '#666', marginBottom: 16 }}>
+              {mmType === 'deposit'
+                ? 'Le client doit confirmer le paiement sur son telephone.'
+                : 'Le virement Mobile Money est en cours de traitement.'}
+            </div>
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label="Ref. interne">{mmResult.reference}</Descriptions.Item>
+              <Descriptions.Item label={mmType === 'deposit' ? 'Deposit ID' : 'Payout ID'}>
+                <code style={{ fontSize: 11 }}>{mmResult.depositId || mmResult.payoutId}</code>
+              </Descriptions.Item>
+            </Descriptions>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginTop: 16, textAlign: 'left' }}
+              message="La transaction passera en statut 'Effectue' automatiquement apres confirmation par l'operateur (callback pawaPay)."
+            />
+          </div>
+        ) : (
+          <Form form={mmForm} layout="vertical">
+            <Form.Item name="accountId" label="Compte client" rules={[{ required: true }]}>
+              <Select showSearch placeholder="Chercher un compte..." optionFilterProp="label"
+                options={accounts.map(a => ({ value: a.id, label: getAccountLabel(a) }))} />
+            </Form.Item>
+
+            <Form.Item name="provider" label="Operateur" rules={[{ required: true }]}>
+              <Select placeholder="Selectionner l'operateur">
+                <Select.Option value="MTN_MOMO">
+                  <Space><MobileOutlined style={{ color: '#FFC107' }} />MTN MoMo</Space>
+                </Select.Option>
+                <Select.Option value="ORANGE_MONEY">
+                  <Space><MobileOutlined style={{ color: '#FF6600' }} />Orange Money</Space>
+                </Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item name="phone" label="Numero de telephone Mobile Money" rules={[{ required: true }]}>
+              <Input placeholder="237699123456" addonBefore="+" />
+            </Form.Item>
+
+            <Form.Item name="amount" label="Montant (FCFA)" rules={[{ required: true, type: 'number', min: 100 }]}>
+              <InputNumber style={{ width: '100%' }} min={100}
+                formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} />
+            </Form.Item>
+
+            <Form.Item name="description" label="Description (optionnel)">
+              <Input.TextArea rows={2} placeholder={mmType === 'deposit' ? 'Depot via Mobile Money' : 'Retrait via Mobile Money'} />
+            </Form.Item>
+
+            {mmType === 'payout' && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 8 }}
+                message="Le montant sera debite immediatement du compte. En cas d'echec de l'operateur, le solde sera restitue automatiquement."
+              />
+            )}
+          </Form>
         )}
       </Modal>
 

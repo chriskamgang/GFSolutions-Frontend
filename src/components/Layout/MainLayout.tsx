@@ -28,6 +28,7 @@ import {
   AimOutlined,
   ThunderboltOutlined,
   LockOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -140,6 +141,7 @@ export default function MainLayout() {
       '/savings-goals': 'sub-epargne',
       '/notifications': 'sub-admin',
       '/callbox': 'sub-admin',
+      '/payment-gateway': 'sub-admin',
     };
     const key = submenuMap[path];
     if (key && !openKeys.includes(key)) {
@@ -258,6 +260,7 @@ export default function MainLayout() {
             { key: '/agencies', icon: <ApartmentOutlined />, label: 'Agences' },
             { key: '/users', icon: <UserOutlined />, label: 'Utilisateurs' },
             { key: '/callbox', icon: <ThunderboltOutlined />, label: 'Callbox' },
+            { key: '/payment-gateway', icon: <ShopOutlined />, label: 'Payment Gateway' },
             { key: '/roles', icon: <SafetyOutlined />, label: 'Roles & Permissions' },
             { key: '/audit', icon: <AuditOutlined />, label: 'Piste d\'audit' },
             { key: '/settings', icon: <SettingOutlined />, label: 'Parametres' },

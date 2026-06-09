@@ -147,7 +147,8 @@ export default function PaymentGateway() {
       description: merchant.description,
       webhookUrl: merchant.webhookUrl,
       returnUrl: merchant.returnUrl,
-      commissionPct: Number(merchant.commissionPct),
+      commissionDepotPct: Number(merchant.commissionDepotPct),
+      commissionRetraitPct: Number(merchant.commissionRetraitPct),
     });
     setEditOpen(true);
   };
@@ -229,14 +230,12 @@ export default function PaymentGateway() {
       ),
     },
     {
-      title: 'Commission',
-      dataIndex: 'commissionPct',
-      key: 'commissionPct',
-      align: 'center' as const,
-      render: (v: any) => (
-        <Tag color="blue" style={{ fontWeight: 700, fontSize: 13 }}>
-          {Number(v).toFixed(2)} %
-        </Tag>
+      title: 'Commission', key: 'commission', align: 'center' as const,
+      render: (_: any, r: any) => (
+        <Space direction="vertical" size={2}>
+          <Tag color="green" style={{ fontWeight: 600 }}>Dépôt: {Number(r.commissionDepotPct).toFixed(2)}%</Tag>
+          <Tag color="red" style={{ fontWeight: 600 }}>Retrait: {Number(r.commissionRetraitPct).toFixed(2)}%</Tag>
+        </Space>
       ),
     },
     {
@@ -480,14 +479,15 @@ export default function PaymentGateway() {
           <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>Commission & Webhooks</Divider>
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="commissionPct" label="Commission GFS (%)" initialValue={0}
-                tooltip="Pourcentage preleve par GFS sur chaque paiement">
-                <InputNumber
-                  style={{ width: '100%' }}
-                  min={0} max={20} step={0.5}
-                  precision={2}
-                  addonAfter={<PercentageOutlined />}
-                />
+              <Form.Item name="commissionDepotPct" label="Commission Dépôt (%)" initialValue={0}
+                tooltip="% prélevé par GFS sur chaque dépôt client">
+                <InputNumber style={{ width: '100%' }} min={0} max={20} step={0.5} precision={2} addonAfter={<PercentageOutlined />} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="commissionRetraitPct" label="Commission Retrait (%)" initialValue={0}
+                tooltip="% prélevé par GFS sur chaque retrait">
+                <InputNumber style={{ width: '100%' }} min={0} max={20} step={0.5} precision={2} addonAfter={<PercentageOutlined />} />
               </Form.Item>
             </Col>
             <Col span={16}>
@@ -622,23 +622,25 @@ export default function PaymentGateway() {
           <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>
             <PercentageOutlined /> Commission
           </Divider>
-          <Form.Item
-            name="commissionPct"
-            label="Commission GFS (%)"
-            tooltip="Montant en % preleve par GFS sur chaque paiement. Ex: 1.5 = 1,5% par transaction."
-            rules={[{ required: true }]}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              min={0} max={20} step={0.5} precision={2}
-              addonAfter={<PercentageOutlined />}
-            />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="commissionDepotPct" label="Commission Dépôt (%)"
+                tooltip="% prélevé par GFS sur chaque dépôt" rules={[{ required: true }]}>
+                <InputNumber style={{ width: '100%' }} min={0} max={20} step={0.5} precision={2} addonAfter={<PercentageOutlined />} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="commissionRetraitPct" label="Commission Retrait (%)"
+                tooltip="% prélevé par GFS sur chaque retrait" rules={[{ required: true }]}>
+                <InputNumber style={{ width: '100%' }} min={0} max={20} step={0.5} precision={2} addonAfter={<PercentageOutlined />} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
-            message={`Exemple : pour un paiement de 10 000 FCFA avec 1,5% de commission, GFS prelevent 150 FCFA de frais.`}
+            message="Exemple : Dépôt 5 000 FCFA avec 1% = 50 FCFA de frais GFS. Retrait 10 000 FCFA avec 1,5% = 150 FCFA de frais GFS."
           />
 
           <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>Webhooks & Redirections</Divider>
@@ -673,8 +675,11 @@ export default function PaymentGateway() {
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Agence">{detailMerchant.agency?.name}</Descriptions.Item>
-            <Descriptions.Item label="Commission">
-              <Tag color="blue" style={{ fontWeight: 700 }}>{Number(detailMerchant.commissionPct).toFixed(2)} %</Tag>
+            <Descriptions.Item label="Commission Dépôt">
+              <Tag color="green" style={{ fontWeight: 700 }}>{Number(detailMerchant.commissionDepotPct).toFixed(2)} %</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Commission Retrait">
+              <Tag color="red" style={{ fontWeight: 700 }}>{Number(detailMerchant.commissionRetraitPct).toFixed(2)} %</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Statut">
               <Tag color={STATUS_COLOR[detailMerchant.status]}>{STATUS_LABEL[detailMerchant.status]}</Tag>

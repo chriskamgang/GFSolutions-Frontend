@@ -1307,6 +1307,10 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
 
       <Divider />
 
+      <KPayTopUpSection canEdit={canEdit} />
+
+      <Divider />
+
       <Card size="small" style={{ borderRadius: 8, background: '#fafafa' }}>
         <Title level={5} style={{ marginBottom: 12 }}>Informations</Title>
         <Descriptions column={1} size="small">
@@ -1316,6 +1320,209 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
         </Descriptions>
       </Card>
     </div>
+  );
+}
+
+// ===================== SECTION RECHARGE KPAY =====================
+function KPayTopUpSection({ canEdit }: { canEdit: boolean }) {
+  const [balance, setBalance] = useState<any>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+  const [topUpModal, setTopUpModal] = useState(false);
+  const [topUpLoading, setTopUpLoading] = useState(false);
+  const [topUpResult, setTopUpResult] = useState<any>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [topUpForm] = Form.useForm();
+
+  const fetchBalance = async () => {
+    setLoadingBalance(true);
+    try {
+      const { data } = await api.get('/pawapay/balance');
+      setBalance(data);
+    } catch {
+      setBalance({ error: 'Impossible de recuperer le solde' });
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
+
+  useEffect(() => { fetchBalance(); }, []);
+
+  const handleTopUp = async (values: any) => {
+    setTopUpLoading(true);
+    setTopUpResult(null);
+    try {
+      const { data } = await api.post('/pawapay/topup', {
+        amount: values.amount,
+        phone: values.phone,
+        provider: values.provider,
+      });
+      setTopUpResult(data);
+      message.success(data.message || 'Demande de recharge envoyee');
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur de recharge');
+    } finally {
+      setTopUpLoading(false);
+    }
+  };
+
+  const checkTopUpStatus = async () => {
+    if (!topUpResult?.paymentId) return;
+    setCheckingStatus(true);
+    try {
+      const { data } = await api.get(`/pawapay/topup/status/${topUpResult.paymentId}`);
+      setTopUpResult((prev: any) => ({ ...prev, currentStatus: data.status, details: data }));
+      if (data.status === 'COMPLETED') {
+        message.success(`Recharge confirmee ! Montant: ${data.amount} FCFA`);
+        fetchBalance();
+        setTopUpModal(false);
+        setTopUpResult(null);
+        topUpForm.resetFields();
+      } else if (data.status === 'FAILED') {
+        message.error(`Recharge echouee: ${data.failureReason || 'Erreur'}`);
+      }
+    } catch {
+      message.error('Impossible de verifier le statut');
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  const balanceAmount = balance?.balance ?? balance?.available ?? balance?.amount;
+  const balanceCurrency = balance?.currency || 'FCFA';
+
+  return (
+    <Card
+      style={{ borderRadius: 10, border: '1.5px solid #1B2A4A' }}
+      title={
+        <span style={{ fontSize: 15, fontWeight: 600 }}>
+          <DollarOutlined style={{ marginRight: 8, color: '#F5A623' }} />
+          Solde Marchand KPay
+        </span>
+      }
+      extra={
+        <Button icon={<ReloadOutlined />} onClick={fetchBalance} loading={loadingBalance} size="small">
+          Actualiser
+        </Button>
+      }
+    >
+      <Row gutter={16} align="middle">
+        <Col flex="auto">
+          {loadingBalance ? (
+            <Spin />
+          ) : balanceAmount !== null && balanceAmount !== undefined ? (
+            <Statistic
+              value={balanceAmount}
+              suffix={balanceCurrency}
+              valueStyle={{ color: '#1B2A4A', fontSize: 28, fontWeight: 700 }}
+            />
+          ) : (
+            <div>
+              <Text type="secondary">
+                Solde non disponible via API.{' '}
+                <a href="https://kpay.site" target="_blank" rel="noopener noreferrer">Voir sur kpay.site</a>
+              </Text>
+            </div>
+          )}
+        </Col>
+        <Col>
+          {canEdit && (
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              style={{ background: '#F5A623', borderColor: '#F5A623', fontWeight: 600, borderRadius: 8 }}
+              onClick={() => { setTopUpModal(true); setTopUpResult(null); }}
+            >
+              Recharger le solde
+            </Button>
+          )}
+        </Col>
+      </Row>
+
+      <div style={{ marginTop: 12 }}>
+        <Alert
+          type="warning"
+          showIcon
+          message="Ce solde permet de couvrir les retraits Mobile Money des clients. Assurez-vous de maintenir un solde suffisant."
+        />
+      </div>
+
+      <Modal
+        title="Recharger le solde KPay"
+        open={topUpModal}
+        onCancel={() => { setTopUpModal(false); setTopUpResult(null); }}
+        footer={null}
+        width={480}
+      >
+        {!topUpResult ? (
+          <Form form={topUpForm} layout="vertical" onFinish={handleTopUp}>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Un paiement Mobile Money sera initie depuis votre telephone pour recharger le solde marchand KPay."
+            />
+            <Form.Item label="Montant (FCFA)" name="amount" rules={[{ required: true, message: 'Requis' }]}>
+              <InputNumber
+                min={100}
+                step={1000}
+                style={{ width: '100%' }}
+                placeholder="Ex: 100000"
+                formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+              />
+            </Form.Item>
+            <Form.Item label="Numero Mobile Money" name="phone" rules={[{ required: true, message: 'Requis' }]}>
+              <Input placeholder="237 6XX XXX XXX" />
+            </Form.Item>
+            <Form.Item label="Operateur" name="provider" rules={[{ required: true, message: 'Requis' }]}>
+              <Select placeholder="Choisir l'operateur">
+                <Select.Option value="MTN_MOMO_CMR">MTN MoMo</Select.Option>
+                <Select.Option value="ORANGE_CMR">Orange Money</Select.Option>
+              </Select>
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={topUpLoading} block size="large">
+              Envoyer la demande de paiement
+            </Button>
+          </Form>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            {topUpResult.currentStatus === 'COMPLETED' ? (
+              <Alert type="success" showIcon message="Recharge confirmee !" style={{ marginBottom: 16 }} />
+            ) : topUpResult.currentStatus === 'FAILED' ? (
+              <Alert type="error" showIcon message={`Echec: ${topUpResult.details?.failureReason || 'Erreur'}`} style={{ marginBottom: 16 }} />
+            ) : (
+              <>
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="En attente de confirmation"
+                  description="Confirmez le paiement sur votre telephone puis cliquez sur Verifier."
+                  style={{ marginBottom: 16 }}
+                />
+                <Descriptions column={1} size="small" style={{ marginBottom: 16, textAlign: 'left' }}>
+                  <Descriptions.Item label="Montant">{topUpResult.amount?.toLocaleString()} FCFA</Descriptions.Item>
+                  <Descriptions.Item label="Statut">
+                    <Tag color={topUpResult.currentStatus === 'COMPLETED' ? 'green' : 'orange'}>
+                      {topUpResult.currentStatus || topUpResult.status || 'PENDING'}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="ID">{topUpResult.paymentId}</Descriptions.Item>
+                </Descriptions>
+                <Button
+                  type="primary"
+                  onClick={checkTopUpStatus}
+                  loading={checkingStatus}
+                  block
+                  size="large"
+                >
+                  Verifier le statut
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
+    </Card>
   );
 }
 

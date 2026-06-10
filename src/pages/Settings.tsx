@@ -1061,11 +1061,100 @@ function WhatsappTab({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+// ===================== KPAY COUNTRIES & PROVIDERS =====================
+const KPAY_COUNTRIES: { code: string; name: string; flag: string; currency: string; providers: { code: string; name: string; commission: string }[] }[] = [
+  { code: 'CMR', name: 'Cameroun', flag: '🇨🇲', currency: 'XAF', providers: [
+    { code: 'MTN_MOMO_CMR', name: 'MTN MoMo', commission: '3%' },
+    { code: 'ORANGE_CMR', name: 'Orange Money', commission: '3%' },
+  ]},
+  { code: 'SEN', name: 'Senegal', flag: '🇸🇳', currency: 'XOF', providers: [
+    { code: 'ORANGE_SEN', name: 'Orange Money', commission: '3%' },
+    { code: 'WAVE_SEN', name: 'Wave', commission: '1%' },
+    { code: 'FREE_SEN', name: 'Free Money', commission: '3%' },
+  ]},
+  { code: 'CIV', name: "Cote d'Ivoire", flag: '🇨🇮', currency: 'XOF', providers: [
+    { code: 'MTN_MOMO_CIV', name: 'MTN MoMo', commission: '3%' },
+    { code: 'ORANGE_CIV', name: 'Orange Money', commission: '3%' },
+    { code: 'WAVE_CIV', name: 'Wave', commission: '1%' },
+    { code: 'MOOV_CIV', name: 'Moov Money', commission: '3%' },
+  ]},
+  { code: 'BFA', name: 'Burkina Faso', flag: '🇧🇫', currency: 'XOF', providers: [
+    { code: 'ORANGE_BFA', name: 'Orange Money', commission: '3%' },
+    { code: 'MOOV_BFA', name: 'Moov Money', commission: '3%' },
+  ]},
+  { code: 'MLI', name: 'Mali', flag: '🇲🇱', currency: 'XOF', providers: [
+    { code: 'ORANGE_MLI', name: 'Orange Money', commission: '3%' },
+    { code: 'MOOV_MLI', name: 'Moov Money', commission: '3%' },
+  ]},
+  { code: 'BEN', name: 'Benin', flag: '🇧🇯', currency: 'XOF', providers: [
+    { code: 'MTN_MOMO_BEN', name: 'MTN MoMo', commission: '3%' },
+    { code: 'MOOV_BEN', name: 'Moov Money', commission: '3%' },
+  ]},
+  { code: 'TGO', name: 'Togo', flag: '🇹🇬', currency: 'XOF', providers: [
+    { code: 'MOOV_TGO', name: 'Moov Money', commission: '3%' },
+    { code: 'TMONEY_TGO', name: 'T-Money', commission: '3%' },
+  ]},
+  { code: 'NER', name: 'Niger', flag: '🇳🇪', currency: 'XOF', providers: [
+    { code: 'ORANGE_NER', name: 'Orange Money', commission: '3%' },
+    { code: 'MOOV_NER', name: 'Moov Money', commission: '3%' },
+  ]},
+  { code: 'COD', name: 'RD Congo', flag: '🇨🇩', currency: 'CDF', providers: [
+    { code: 'MPESA_COD', name: 'M-Pesa', commission: '3%' },
+    { code: 'ORANGE_COD', name: 'Orange Money', commission: '3%' },
+    { code: 'AIRTEL_COD', name: 'Airtel Money', commission: '3%' },
+  ]},
+  { code: 'COG', name: 'Congo-Brazzaville', flag: '🇨🇬', currency: 'XAF', providers: [
+    { code: 'MTN_MOMO_COG', name: 'MTN MoMo', commission: '3%' },
+    { code: 'AIRTEL_COG', name: 'Airtel Money', commission: '3%' },
+  ]},
+  { code: 'GAB', name: 'Gabon', flag: '🇬🇦', currency: 'XAF', providers: [
+    { code: 'AIRTEL_GAB', name: 'Airtel Money', commission: '3%' },
+    { code: 'MOOV_GAB', name: 'Moov Money', commission: '3%' },
+  ]},
+  { code: 'GIN', name: 'Guinee', flag: '🇬🇳', currency: 'GNF', providers: [
+    { code: 'ORANGE_GIN', name: 'Orange Money', commission: '3%' },
+    { code: 'MTN_MOMO_GIN', name: 'MTN MoMo', commission: '3%' },
+  ]},
+  { code: 'TCD', name: 'Tchad', flag: '🇹🇩', currency: 'XAF', providers: [
+    { code: 'AIRTEL_TCD', name: 'Airtel Money', commission: '3%' },
+  ]},
+  { code: 'RCA', name: 'Centrafrique', flag: '🇨🇫', currency: 'XAF', providers: [
+    { code: 'ORANGE_RCA', name: 'Orange Money', commission: '3%' },
+  ]},
+  { code: 'KEN', name: 'Kenya', flag: '🇰🇪', currency: 'KES', providers: [
+    { code: 'MPESA_KEN', name: 'M-Pesa', commission: '2%' },
+    { code: 'AIRTEL_KEN', name: 'Airtel Money', commission: '3%' },
+  ]},
+  { code: 'UGA', name: 'Ouganda', flag: '🇺🇬', currency: 'UGX', providers: [
+    { code: 'MTN_MOMO_UGA', name: 'MTN MoMo', commission: '3%' },
+    { code: 'AIRTEL_UGA', name: 'Airtel Money', commission: '3%' },
+  ]},
+  { code: 'TZA', name: 'Tanzanie', flag: '🇹🇿', currency: 'TZS', providers: [
+    { code: 'MPESA_TZA', name: 'M-Pesa', commission: '3%' },
+    { code: 'AIRTEL_TZA', name: 'Airtel Money', commission: '3%' },
+    { code: 'TIGO_TZA', name: 'Tigo Pesa', commission: '3%' },
+  ]},
+  { code: 'GHA', name: 'Ghana', flag: '🇬🇭', currency: 'GHS', providers: [
+    { code: 'MTN_MOMO_GHA', name: 'MTN MoMo', commission: '2%' },
+    { code: 'VODAFONE_GHA', name: 'Vodafone Cash', commission: '3%' },
+    { code: 'AIRTELTIGO_GHA', name: 'AirtelTigo Money', commission: '3%' },
+  ]},
+  { code: 'RWA', name: 'Rwanda', flag: '🇷🇼', currency: 'RWF', providers: [
+    { code: 'MTN_MOMO_RWA', name: 'MTN MoMo', commission: '3%' },
+    { code: 'AIRTEL_RWA', name: 'Airtel Money', commission: '3%' },
+  ]},
+  { code: 'ZMB', name: 'Zambie', flag: '🇿🇲', currency: 'ZMW', providers: [
+    { code: 'MTN_MOMO_ZMB', name: 'MTN MoMo', commission: '3%' },
+    { code: 'AIRTEL_ZMB', name: 'Airtel Money', commission: '3%' },
+  ]},
+];
+
 // ===================== ONGLET KPAY =====================
 function KPayTab({ canEdit }: { canEdit: boolean }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [config, setConfig] = useState<{ apiKey: string; secretKeyConfigured: boolean; callbackUrl: string; enabled: boolean } | null>(null);
+  const [config, setConfig] = useState<any>(null);
+  const [enabledProviders, setEnabledProviders] = useState<string[]>([]);
   const [form] = Form.useForm();
 
   const fetchConfig = useCallback(async () => {
@@ -1073,6 +1162,7 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
     try {
       const { data } = await api.get('/settings/kpay');
       setConfig(data);
+      setEnabledProviders(data.enabledProviders || []);
       form.setFieldsValue({
         apiKey: data.apiKey || '',
         callbackUrl: data.callbackUrl || 'https://backend.gfinancials.com/api/v1',
@@ -1087,6 +1177,17 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
 
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
+  const toggleCountry = (countryProviders: string[], checked: boolean) => {
+    setEnabledProviders(prev => {
+      if (checked) return [...new Set([...prev, ...countryProviders])];
+      return prev.filter(p => !countryProviders.includes(p));
+    });
+  };
+
+  const toggleProvider = (code: string, checked: boolean) => {
+    setEnabledProviders(prev => checked ? [...prev, code] : prev.filter(p => p !== code));
+  };
+
   const handleSave = async (values: any) => {
     setSaving(true);
     try {
@@ -1094,6 +1195,7 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
         apiKey: values.apiKey,
         callbackUrl: values.callbackUrl,
         enabled: values.enabled,
+        enabledProviders,
       };
       if (values.secretKey) payload.secretKey = values.secretKey;
       await api.post('/settings/kpay', payload);
@@ -1115,8 +1217,8 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
         type="info"
         showIcon
         style={{ marginBottom: 20, borderRadius: 8 }}
-        message="KPay Mobile Money"
-        description="Configurez vos cles API KPay pour activer les depots et retraits Mobile Money (MTN MoMo, Orange Money) au Cameroun. Commission : 3% par transaction."
+        message="KPay Mobile Money — Multi-pays"
+        description="Configurez vos cles API KPay et activez les pays et operateurs souhaites. KPay supporte 20 pays africains et 42+ operateurs Mobile Money."
       />
 
       <Form form={form} layout="vertical" onFinish={handleSave} disabled={!canEdit}>
@@ -1131,7 +1233,7 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
               label={<span>Cle Secrete (X-Secret-Key) {config?.secretKeyConfigured && <Tag color="green" style={{ marginLeft: 8 }}>Configuree</Tag>}</span>}
               name="secretKey"
             >
-              <Input.Password placeholder={config?.secretKeyConfigured ? 'Laisser vide pour conserver l\'actuelle' : 'sk_live_xxxxxxxxxxxxxxxx'} />
+              <Input.Password placeholder={config?.secretKeyConfigured ? "Laisser vide pour conserver l'actuelle" : 'sk_live_xxxxxxxxxxxxxxxx'} />
             </Form.Item>
           </Col>
         </Row>
@@ -1144,8 +1246,58 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
           <Switch checkedChildren="Actif" unCheckedChildren="Inactif" />
         </Form.Item>
 
+        <Divider><span>Pays et operateurs actifs ({enabledProviders.length} operateur{enabledProviders.length > 1 ? 's' : ''} active{enabledProviders.length > 1 ? 's' : ''})</span></Divider>
+
+        <Row gutter={[12, 12]}>
+          {KPAY_COUNTRIES.map(country => {
+            const countryCodes = country.providers.map(p => p.code);
+            const allEnabled = countryCodes.every(c => enabledProviders.includes(c));
+            const someEnabled = countryCodes.some(c => enabledProviders.includes(c));
+            return (
+              <Col xs={24} sm={12} md={8} lg={6} key={country.code}>
+                <Card
+                  size="small"
+                  style={{
+                    borderRadius: 8,
+                    border: someEnabled ? '1.5px solid #1B2A4A' : '1px solid #e8e8e8',
+                    background: someEnabled ? '#f0f5ff' : '#fafafa',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>
+                      {country.flag} {country.name}
+                    </span>
+                    <Switch
+                      size="small"
+                      checked={allEnabled}
+                      disabled={!canEdit}
+                      onChange={(checked) => toggleCountry(countryCodes, checked)}
+                    />
+                  </div>
+                  <Tag color="blue" style={{ marginBottom: 8 }}>{country.currency}</Tag>
+                  {country.providers.map(p => (
+                    <div key={p.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', fontSize: 12 }}>
+                      <label style={{ cursor: canEdit ? 'pointer' : 'default' }}>
+                        <input
+                          type="checkbox"
+                          checked={enabledProviders.includes(p.code)}
+                          disabled={!canEdit}
+                          onChange={(e) => toggleProvider(p.code, e.target.checked)}
+                          style={{ marginRight: 6 }}
+                        />
+                        {p.name}
+                      </label>
+                      <span style={{ color: '#999', fontSize: 11 }}>{p.commission}</span>
+                    </div>
+                  ))}
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+
         {canEdit && (
-          <Form.Item>
+          <Form.Item style={{ marginTop: 20 }}>
             <Button type="primary" htmlType="submit" loading={saving}>
               Sauvegarder la configuration
             </Button>
@@ -1159,9 +1311,7 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
         <Title level={5} style={{ marginBottom: 12 }}>Informations</Title>
         <Descriptions column={1} size="small">
           <Descriptions.Item label="URL API KPay">https://admin.kpay.site</Descriptions.Item>
-          <Descriptions.Item label="Providers Cameroun">MTN_MOMO_CMR, ORANGE_CMR</Descriptions.Item>
-          <Descriptions.Item label="Devise">XAF (FCFA)</Descriptions.Item>
-          <Descriptions.Item label="Commission">3% depot / 3% retrait</Descriptions.Item>
+          <Descriptions.Item label="Pays disponibles">{KPAY_COUNTRIES.length} pays, {KPAY_COUNTRIES.reduce((a, c) => a + c.providers.length, 0)} operateurs</Descriptions.Item>
           <Descriptions.Item label="Webhook KPay">Configurez dans le dashboard KPay l'URL : <Text code copyable>{(form.getFieldValue('callbackUrl') || 'https://backend.gfinancials.com/api/v1') + '/pawapay/webhook'}</Text></Descriptions.Item>
         </Descriptions>
       </Card>

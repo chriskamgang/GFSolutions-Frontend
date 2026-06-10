@@ -1062,12 +1062,13 @@ function RapprochementBancaireTab() {
       if (dateRange?.[1]) params.push(`endDate=${dateRange[1].format('YYYY-MM-DD')}`);
       const qs = params.length ? `?${params.join('&')}` : '';
 
-      const matchedParam = filterMatched !== 'ALL' ? `&matched=${filterMatched === 'MATCHED'}` : '';
+      const matchedParam = filterMatched !== 'ALL' ? `matched=${filterMatched === 'MATCHED'}` : '';
 
+      const bankQs = [qs ? qs.slice(1) : '', matchedParam].filter(Boolean).join('&');
       const [summaryRes, bankRes, internalRes] = await Promise.all([
         api.get(`/accounting/reconciliation/summary${qs}`),
-        api.get(`/accounting/bank-statement${qs}${matchedParam}`),
-        api.get(`/accounting/grand-livre/111${qs}&limit=500`),
+        api.get(`/accounting/bank-statement${bankQs ? '?' + bankQs : ''}`),
+        api.get(`/accounting/grand-livre/111${qs ? qs + '&' : '?'}limit=500`),
       ]);
       setSummary(summaryRes.data);
       setBankLines(bankRes.data.lines || []);

@@ -1061,6 +1061,114 @@ function WhatsappTab({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+// ===================== ONGLET KPAY =====================
+function KPayTab({ canEdit }: { canEdit: boolean }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [config, setConfig] = useState<{ apiKey: string; secretKeyConfigured: boolean; callbackUrl: string; enabled: boolean } | null>(null);
+  const [form] = Form.useForm();
+
+  const fetchConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/settings/kpay');
+      setConfig(data);
+      form.setFieldsValue({
+        apiKey: data.apiKey || '',
+        callbackUrl: data.callbackUrl || 'https://backend.gfinancials.com/api/v1',
+        enabled: data.enabled,
+      });
+    } catch {
+      message.error('Impossible de charger la configuration KPay');
+    } finally {
+      setLoading(false);
+    }
+  }, [form]);
+
+  useEffect(() => { fetchConfig(); }, [fetchConfig]);
+
+  const handleSave = async (values: any) => {
+    setSaving(true);
+    try {
+      const payload: any = {
+        apiKey: values.apiKey,
+        callbackUrl: values.callbackUrl,
+        enabled: values.enabled,
+      };
+      if (values.secretKey) payload.secretKey = values.secretKey;
+      await api.post('/settings/kpay', payload);
+      message.success('Configuration KPay sauvegardee');
+      form.setFieldValue('secretKey', '');
+      fetchConfig();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur de sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>;
+
+  return (
+    <div>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 20, borderRadius: 8 }}
+        message="KPay Mobile Money"
+        description="Configurez vos cles API KPay pour activer les depots et retraits Mobile Money (MTN MoMo, Orange Money) au Cameroun. Commission : 3% par transaction."
+      />
+
+      <Form form={form} layout="vertical" onFinish={handleSave} disabled={!canEdit}>
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item label="Cle API (X-API-Key)" name="apiKey" rules={[{ required: true, message: 'Requis' }]}>
+              <Input placeholder="kpay_live_xxxxxxxxxxxxxxxx" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label={<span>Cle Secrete (X-Secret-Key) {config?.secretKeyConfigured && <Tag color="green" style={{ marginLeft: 8 }}>Configuree</Tag>}</span>}
+              name="secretKey"
+            >
+              <Input.Password placeholder={config?.secretKeyConfigured ? 'Laisser vide pour conserver l\'actuelle' : 'sk_live_xxxxxxxxxxxxxxxx'} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Form.Item label="URL de Callback (Webhook)" name="callbackUrl" rules={[{ required: true, message: 'Requis' }]}>
+          <Input placeholder="https://backend.gfinancials.com/api/v1" />
+        </Form.Item>
+
+        <Form.Item label="Activer KPay" name="enabled" valuePropName="checked">
+          <Switch checkedChildren="Actif" unCheckedChildren="Inactif" />
+        </Form.Item>
+
+        {canEdit && (
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={saving}>
+              Sauvegarder la configuration
+            </Button>
+          </Form.Item>
+        )}
+      </Form>
+
+      <Divider />
+
+      <Card size="small" style={{ borderRadius: 8, background: '#fafafa' }}>
+        <Title level={5} style={{ marginBottom: 12 }}>Informations</Title>
+        <Descriptions column={1} size="small">
+          <Descriptions.Item label="URL API KPay">https://admin.kpay.site</Descriptions.Item>
+          <Descriptions.Item label="Providers Cameroun">MTN_MOMO_CMR, ORANGE_CMR</Descriptions.Item>
+          <Descriptions.Item label="Devise">XAF (FCFA)</Descriptions.Item>
+          <Descriptions.Item label="Commission">3% depot / 3% retrait</Descriptions.Item>
+          <Descriptions.Item label="Webhook KPay">Configurez dans le dashboard KPay l'URL : <Text code copyable>{(form.getFieldValue('callbackUrl') || 'https://backend.gfinancials.com/api/v1') + '/pawapay/webhook'}</Text></Descriptions.Item>
+        </Descriptions>
+      </Card>
+    </div>
+  );
+}
+
 // ===================== PAGE PRINCIPALE =====================
 export default function Settings() {
   const { canUpdate, isReadOnly } = usePermissions();
@@ -1132,6 +1240,11 @@ export default function Settings() {
       key: 'whatsapp',
       label: <span><WhatsAppOutlined style={{ color: '#25D366' }} /> WhatsApp</span>,
       children: <WhatsappTab canEdit={canEdit} />,
+    },
+    {
+      key: 'kpay',
+      label: <span><MobileOutlined /> KPay Mobile Money</span>,
+      children: <KPayTab canEdit={canEdit} />,
     },
     {
       key: 'security',

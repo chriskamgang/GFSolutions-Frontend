@@ -20,6 +20,7 @@ export default function MobileMoney() {
   const [stats, setStats] = useState({ totalDeposits: 0, totalWithdrawals: 0, pendingCount: 0, completedCount: 0, failedCount: 0, totalDepositAmount: 0, totalWithdrawalAmount: 0 });
   const [balance, setBalance] = useState<any>(null);
   const [filters, setFilters] = useState<{ type?: string; status?: string; dates?: [dayjs.Dayjs, dayjs.Dayjs] }>({});
+  const [isTestMode, setIsTestMode] = useState(true);
   const [topUpModal, setTopUpModal] = useState(false);
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpResult, setTopUpResult] = useState<any>(null);
@@ -30,7 +31,7 @@ export default function MobileMoney() {
     setLoading(true);
     try {
       const [txRes, balRes] = await Promise.all([
-        api.get('/transactions', { params: { limit: 500 } }),
+        api.get('/transactions', { params: { limit: 500, isTest: isTestMode ? 'true' : 'false' } }),
         api.get('/pawapay/balance'),
       ]);
 
@@ -59,7 +60,7 @@ export default function MobileMoney() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isTestMode]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -216,10 +217,47 @@ export default function MobileMoney() {
   return (
     <div style={{ padding: '0 0 24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <MobileOutlined style={{ marginRight: 10 }} />
-          Mobile Money — KPay
-        </Title>
+        <Space size="middle" align="center">
+          <Title level={3} style={{ margin: 0 }}>
+            <MobileOutlined style={{ marginRight: 10 }} />
+            Mobile Money — KPay
+          </Title>
+          <div style={{ display: 'inline-flex', borderRadius: 20, overflow: 'hidden', border: '1px solid #d9d9d9' }}>
+            <div
+              onClick={() => setIsTestMode(false)}
+              style={{
+                padding: '4px 16px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: 13,
+                background: !isTestMode ? '#52c41a' : '#fff',
+                color: !isTestMode ? '#fff' : '#999',
+                transition: 'all 0.2s',
+              }}
+            >
+              Live
+            </div>
+            <div
+              onClick={() => setIsTestMode(true)}
+              style={{
+                padding: '4px 16px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: 13,
+                background: isTestMode ? '#faad14' : '#fff',
+                color: isTestMode ? '#fff' : '#999',
+                transition: 'all 0.2s',
+              }}
+            >
+              Test
+            </div>
+          </div>
+          {isTestMode && (
+            <Tag color="warning" style={{ fontSize: 12 }}>
+              Mode Sandbox — aucun argent reel
+            </Tag>
+          )}
+        </Space>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchData}>Actualiser</Button>
           <Button
@@ -232,6 +270,16 @@ export default function MobileMoney() {
           </Button>
         </Space>
       </div>
+
+      {isTestMode && (
+        <Alert
+          type="warning"
+          banner
+          showIcon
+          style={{ marginBottom: 16, borderRadius: 8 }}
+          message="Environnement de test — Les transactions affichees sont des tests sandbox KPay. Passez en Live pour voir les transactions reelles."
+        />
+      )}
 
       {/* KPI Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>

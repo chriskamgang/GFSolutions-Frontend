@@ -1213,11 +1213,15 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
 
   return (
     <div>
+      <KPayTopUpSection canEdit={canEdit} />
+
+      <Divider />
+
       <Alert
         type="info"
         showIcon
         style={{ marginBottom: 20, borderRadius: 8 }}
-        message="KPay Mobile Money — Multi-pays"
+        message="Configuration KPay Mobile Money — Multi-pays"
         description="Configurez vos cles API KPay et activez les pays et operateurs souhaites. KPay supporte 20 pays africains et 42+ operateurs Mobile Money."
       />
 
@@ -1304,10 +1308,6 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
           </Form.Item>
         )}
       </Form>
-
-      <Divider />
-
-      <KPayTopUpSection canEdit={canEdit} />
 
       <Divider />
 

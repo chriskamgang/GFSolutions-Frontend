@@ -29,6 +29,7 @@ import {
   ThunderboltOutlined,
   LockOutlined,
   ShopOutlined,
+  MobileOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -126,6 +127,7 @@ export default function MainLayout() {
       '/companies': 'sub-clients',
       '/accounts': 'sub-operations',
       '/transactions': 'sub-operations',
+      '/mobile-money': 'sub-operations',
       '/savings': 'sub-epargne',
       '/credits': 'sub-credits',
       '/treasury': 'sub-compta',
@@ -197,6 +199,7 @@ export default function MainLayout() {
       children: [
         { key: '/transactions', icon: <DollarOutlined />, label: 'Transactions' },
         { key: '/accounts', icon: <BankOutlined />, label: 'Comptes' },
+        { key: '/mobile-money', icon: <MobileOutlined />, label: 'Mobile Money' },
         { key: '/bill-payments', icon: <ThunderboltOutlined />, label: 'Paiements Factures' },
         { key: '/checkbooks', icon: <FileProtectOutlined />, label: 'Chequiers' },
       ],

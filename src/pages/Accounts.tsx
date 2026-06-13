@@ -94,7 +94,7 @@ export default function Accounts() {
       const list = data.data || data;
       const rows = list.map((a: any) => ({
         'N° Compte': a.accountNumber,
-        'Client': a.client ? `${a.client.firstName} ${a.client.lastName}` : '-',
+        'Client': a.client ? (a.client.clientType === 'MORALE' ? a.client.raisonSociale : `${a.client.firstName} ${a.client.lastName}`) : '-',
         'Type': a.type,
         'Solde (FCFA)': Number(a.balance),
         'Taux interet (%)': a.interestRate ? Number(a.interestRate) : '',
@@ -129,7 +129,7 @@ export default function Accounts() {
     {
       title: 'Client',
       key: 'client',
-      render: (_: any, r: any) => r.client ? `${r.client.firstName} ${r.client.lastName}` : '-',
+      render: (_: any, r: any) => r.client ? (r.client.clientType === 'MORALE' ? r.client.raisonSociale : `${r.client.firstName} ${r.client.lastName}`) : '-',
     },
     {
       title: 'Type',
@@ -276,7 +276,7 @@ export default function Accounts() {
 
             <Descriptions size="small" bordered column={2} style={{ marginBottom: 16 }}>
               <Descriptions.Item label="Client">
-                {selectedAccount.client ? `${selectedAccount.client.firstName} ${selectedAccount.client.lastName}` : '-'}
+                {selectedAccount.client ? (selectedAccount.client.clientType === 'MORALE' ? selectedAccount.client.raisonSociale : `${selectedAccount.client.firstName} ${selectedAccount.client.lastName}`) : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Ouverture">{dayjs(selectedAccount.createdAt).format('DD/MM/YYYY')}</Descriptions.Item>
               {selectedAccount.maturityDate && (

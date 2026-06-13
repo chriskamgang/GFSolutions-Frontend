@@ -3,6 +3,7 @@ import { Card, Typography, Row, Col, Tabs, Statistic, Tag, Table, Descriptions, 
 import {
   BarChartOutlined, TeamOutlined, BankOutlined, CreditCardOutlined,
   DollarOutlined, SafetyOutlined, RiseOutlined, FileAddOutlined,
+  FundProjectionScreenOutlined,
 } from '@ant-design/icons';
 import { Column, Pie, Line } from '@ant-design/charts';
 import { DownloadOutlined, FilePdfOutlined } from '@ant-design/icons';
@@ -787,6 +788,155 @@ function RapportCOBACTab() {
   );
 }
 
+// ==================== PROVISIONNEMENT COBAC ====================
+function ProvisionnementTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/reports/provisioning')
+      .then(res => setData(res.data))
+      .catch(() => message.error('Erreur chargement provisionnement'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Chargement...</div>;
+  if (!data) return <div>Aucune donnee</div>;
+
+  const tiers = [
+    { label: 'Saines (1%)', key: 'saines', color: 'green' },
+    { label: 'Pre-douteuses (25%)', key: 'preDouteuses', color: 'gold' },
+    { label: 'Douteuses (50%)', key: 'douteuses', color: 'orange' },
+    { label: 'Contentieuses (75%)', key: 'contentieuses', color: 'volcano' },
+    { label: 'Compromises (100%)', key: 'compromises', color: 'red' },
+  ];
+
+  return (
+    <div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={8}>
+          <Card><Statistic title="Encours total credits" value={data.totalOutstanding} suffix="FCFA" formatter={(v: any) => fmt(Number(v))} /></Card>
+        </Col>
+        <Col span={8}>
+          <Card><Statistic title="Provision totale requise" value={data.totalProvision} suffix="FCFA" valueStyle={{ color: '#f5222d' }} formatter={(v: any) => fmt(Number(v))} /></Card>
+        </Col>
+        <Col span={8}>
+          <Card><Statistic title="Taux de provisionnement" value={data.provisionRate} suffix="%" precision={2} /></Card>
+        </Col>
+      </Row>
+
+      <Table
+        dataSource={tiers.map(t => ({
+          key: t.key,
+          category: t.label,
+          count: data.tiers?.[t.key]?.count || 0,
+          outstanding: data.tiers?.[t.key]?.outstanding || 0,
+          provision: data.tiers?.[t.key]?.provision || 0,
+          color: t.color,
+        }))}
+        columns={[
+          { title: 'Classification', dataIndex: 'category', render: (v: string, r: any) => <Tag color={r.color}>{v}</Tag> },
+          { title: 'Nombre credits', dataIndex: 'count', align: 'right' as const },
+          { title: 'Encours (FCFA)', dataIndex: 'outstanding', align: 'right' as const, render: (v: number) => fmt(v) },
+          { title: 'Provision (FCFA)', dataIndex: 'provision', align: 'right' as const, render: (v: number) => <Text type="danger">{fmt(v)}</Text> },
+        ]}
+        pagination={false}
+        size="small"
+        summary={() => (
+          <Table.Summary.Row>
+            <Table.Summary.Cell index={0}><Text strong>TOTAL</Text></Table.Summary.Cell>
+            <Table.Summary.Cell index={1} align="right"><Text strong>{tiers.reduce((s, t) => s + (data.tiers?.[t.key]?.count || 0), 0)}</Text></Table.Summary.Cell>
+            <Table.Summary.Cell index={2} align="right"><Text strong>{fmt(data.totalOutstanding || 0)}</Text></Table.Summary.Cell>
+            <Table.Summary.Cell index={3} align="right"><Text strong type="danger">{fmt(data.totalProvision || 0)}</Text></Table.Summary.Cell>
+          </Table.Summary.Row>
+        )}
+      />
+    </div>
+  );
+}
+
+// ==================== TAFIRE ====================
+function TafireTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [year, setYear] = useState(dayjs().year());
+
+  const fetchTafire = () => {
+    setLoading(true);
+    api.get('/reports/tafire', { params: { year } })
+      .then(res => setData(res.data))
+      .catch(() => message.error('Erreur chargement TAFIRE'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchTafire(); }, [year]);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}>Chargement...</div>;
+  if (!data) return <div>Aucune donnee</div>;
+
+  const sections = [
+    { title: 'A. Flux de tresorerie d\'exploitation', key: 'exploitation', color: '#1B2A4A' },
+    { title: 'B. Flux de tresorerie d\'investissement', key: 'investissement', color: '#2196F3' },
+    { title: 'C. Flux de tresorerie de financement', key: 'financement', color: '#F5A623' },
+  ];
+
+  return (
+    <div>
+      <Space style={{ marginBottom: 16 }}>
+        <Text strong>Exercice :</Text>
+        <DatePicker picker="year" value={dayjs().year(year)} onChange={d => d && setYear(d.year())} />
+        <Button icon={<DownloadOutlined />} onClick={() => {
+          const rows = sections.flatMap(s => [
+            { Rubrique: s.title, Montant: '' },
+            ...(data[s.key]?.items || []).map((item: any) => ({ Rubrique: `  ${item.label}`, Montant: item.amount })),
+            { Rubrique: `TOTAL ${s.title}`, Montant: data[s.key]?.total || 0 },
+            { Rubrique: '', Montant: '' },
+          ]);
+          rows.push({ Rubrique: 'Tresorerie ouverture', Montant: data.tresorerieOuverture || 0 });
+          rows.push({ Rubrique: 'Variation nette', Montant: data.variationNette || 0 });
+          rows.push({ Rubrique: 'Tresorerie cloture', Montant: data.tresorerieCloture || 0 });
+          exportToExcel(rows, [
+            { title: 'Rubrique', key: 'Rubrique' },
+            { title: 'Montant', key: 'Montant' },
+          ], `TAFIRE_${year}`);
+        }}>Export Excel</Button>
+      </Space>
+
+      {sections.map(s => (
+        <Card key={s.key} size="small" title={<Text strong style={{ color: s.color }}>{s.title}</Text>} style={{ marginBottom: 12 }}>
+          <Table
+            dataSource={(data[s.key]?.items || []).map((item: any, i: number) => ({ key: i, ...item }))}
+            columns={[
+              { title: 'Rubrique', dataIndex: 'label' },
+              { title: 'Montant (FCFA)', dataIndex: 'amount', align: 'right' as const, render: (v: number) => fmt(v) },
+            ]}
+            pagination={false}
+            size="small"
+            summary={() => (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0}><Text strong>TOTAL</Text></Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right"><Text strong>{fmt(data[s.key]?.total || 0)}</Text></Table.Summary.Cell>
+              </Table.Summary.Row>
+            )}
+          />
+        </Card>
+      ))}
+
+      <Card size="small" style={{ marginTop: 12 }}>
+        <Descriptions bordered column={1} size="small">
+          <Descriptions.Item label={<Text strong>Tresorerie en debut d'exercice</Text>}>{fmt(data.tresorerieOuverture || 0)} FCFA</Descriptions.Item>
+          <Descriptions.Item label={<Text strong>Variation nette de tresorerie</Text>}>
+            <Text type={data.variationNette >= 0 ? 'success' : 'danger'}>{fmt(data.variationNette || 0)} FCFA</Text>
+          </Descriptions.Item>
+          <Descriptions.Item label={<Text strong>Tresorerie en fin d'exercice</Text>}>
+            <Text strong style={{ fontSize: 16 }}>{fmt(data.tresorerieCloture || 0)} FCFA</Text>
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+    </div>
+  );
+}
+
 export default function Reports() {
   const tabItems = [
     { key: 'kpis', label: <span><BarChartOutlined /> KPIs & Ratios</span>, children: <KPIsTab /> },
@@ -794,6 +944,8 @@ export default function Reports() {
     { key: 'monthly', label: <span><DollarOutlined /> Rapport mensuel</span>, children: <RapportMensuelTab /> },
     { key: 'evolution', label: <span><RiseOutlined /> Evolution 12 mois</span>, children: <EvolutionTab /> },
     { key: 'ouvertures', label: <span><FileAddOutlined /> Ouvertures de comptes</span>, children: <OuverturesComptesTab /> },
+    { key: 'provisionnement', label: <span><SafetyOutlined /> Provisionnement COBAC</span>, children: <ProvisionnementTab /> },
+    { key: 'tafire', label: <span><FundProjectionScreenOutlined /> TAFIRE</span>, children: <TafireTab /> },
   ];
 
   return (

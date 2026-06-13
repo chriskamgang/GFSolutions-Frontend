@@ -30,6 +30,8 @@ import {
   LockOutlined,
   ShopOutlined,
   MobileOutlined,
+  AlertOutlined,
+  UsergroupAddOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -142,6 +144,8 @@ export default function MainLayout() {
       '/tontines': 'sub-epargne',
       '/savings-goals': 'sub-epargne',
       '/notifications': 'sub-admin',
+      '/solidarity-groups': 'sub-clients',
+      '/aml-alerts': 'sub-compta',
       '/callbox': 'sub-admin',
       '/payment-gateway': 'sub-admin',
     };
@@ -187,6 +191,7 @@ export default function MainLayout() {
           children: [
             { key: '/clients', icon: <UserOutlined />, label: 'Personnes physiques' },
             { key: '/companies', icon: <IdcardOutlined />, label: 'Personnes morales' },
+            { key: '/solidarity-groups', icon: <UsergroupAddOutlined />, label: 'Groupes solidaires' },
           ],
         },
       ],
@@ -245,6 +250,7 @@ export default function MainLayout() {
             { key: '/treasury', icon: <FundOutlined />, label: 'Tresorerie' },
             { key: '/accounting', icon: <ReconciliationOutlined />, label: 'Ecritures & Bilan' },
             { key: '/reports', icon: <BarChartOutlined />, label: 'Rapports & KPIs' },
+            { key: '/aml-alerts', icon: <AlertOutlined />, label: 'LAB/FT' },
           ],
         },
       ],

@@ -29,6 +29,8 @@ import BillPayments from './pages/BillPayments';
 import Callbox from './pages/Callbox';
 import PaymentGateway from './pages/PaymentGateway';
 import MobileMoney from './pages/MobileMoney';
+import SolidarityGroups from './pages/SolidarityGroups';
+import AmlAlerts from './pages/AmlAlerts';
 import './styles/global.css';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -83,6 +85,8 @@ function AppRoutes() {
         <Route path="callbox" element={<ProtectedRoute permission="USERS:READ"><Callbox /></ProtectedRoute>} />
         <Route path="payment-gateway" element={<PrivateRoute><PaymentGateway /></PrivateRoute>} />
         <Route path="mobile-money" element={<ProtectedRoute permission="TRANSACTIONS:READ"><MobileMoney /></ProtectedRoute>} />
+        <Route path="solidarity-groups" element={<ProtectedRoute permission="CLIENTS:READ"><SolidarityGroups /></ProtectedRoute>} />
+        <Route path="aml-alerts" element={<ProtectedRoute permission="REPORTS:READ"><AmlAlerts /></ProtectedRoute>} />
       </Route>
     </Routes>
   );

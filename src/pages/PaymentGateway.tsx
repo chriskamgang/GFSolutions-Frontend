@@ -9,7 +9,7 @@ import {
   PlusOutlined, KeyOutlined, CheckCircleOutlined,
   StopOutlined, ReloadOutlined, EyeOutlined, EditOutlined,
   ShopOutlined, DollarOutlined, LineChartOutlined, CopyOutlined,
-  PercentageOutlined,
+  PercentageOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import dayjs from 'dayjs';
@@ -245,6 +245,14 @@ export default function PaymentGateway() {
       ),
     },
     {
+      title: 'Clients inscrits', key: 'onboarded', align: 'center' as const,
+      render: (_: any, r: any) => (
+        <Tag color={r.onboardedClients > 0 ? 'blue' : 'default'} icon={<TeamOutlined />} style={{ fontWeight: 600 }}>
+          {r.onboardedClients || 0}
+        </Tag>
+      ),
+    },
+    {
       title: 'Statut', dataIndex: 'status', key: 'status',
       render: (s: string) => <Badge status={s === 'ACTIVE' ? 'success' : s === 'PENDING' ? 'warning' : 'error'} text={STATUS_LABEL[s] || s} />,
     },
@@ -334,7 +342,7 @@ export default function PaymentGateway() {
       {/* KPI Cards */}
       {stats && (
         <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
+          <Col xs={12} lg={5}>
             <Card>
               <Statistic
                 title="Marchands actifs"
@@ -345,7 +353,17 @@ export default function PaymentGateway() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} lg={5}>
+            <Card>
+              <Statistic
+                title="Clients inscrits"
+                value={stats.totalOnboardedClients || 0}
+                prefix={<TeamOutlined style={{ color: '#722ed1' }} />}
+                valueStyle={{ color: '#722ed1' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} lg={5}>
             <Card>
               <Statistic
                 title="Paiements effectues"
@@ -356,7 +374,7 @@ export default function PaymentGateway() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} lg={5}>
             <Card>
               <Statistic
                 title="Volume total (FCFA)"
@@ -367,7 +385,7 @@ export default function PaymentGateway() {
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} lg={4}>
             <Card>
               <Statistic
                 title="Taux de succes"
@@ -685,6 +703,9 @@ export default function PaymentGateway() {
               <Tag color={STATUS_COLOR[detailMerchant.status]}>{STATUS_LABEL[detailMerchant.status]}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Nb. paiements">{detailMerchant._count?.payments || 0}</Descriptions.Item>
+            <Descriptions.Item label="Clients inscrits">
+              <Tag color="blue" icon={<TeamOutlined />} style={{ fontWeight: 700 }}>{detailMerchant.onboardedClients || 0}</Tag>
+            </Descriptions.Item>
             <Descriptions.Item label="Webhook URL" span={2}>{detailMerchant.webhookUrl || '-'}</Descriptions.Item>
             <Descriptions.Item label="Return URL" span={2}>{detailMerchant.returnUrl || '-'}</Descriptions.Item>
             <Descriptions.Item label="API Key" span={2}>

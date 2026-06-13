@@ -9,6 +9,7 @@ import {
   DollarOutlined, ShoppingOutlined, PlusOutlined, EditOutlined,
   MessageOutlined, SendOutlined, EyeInvisibleOutlined, EyeOutlined,
   WhatsAppOutlined, ReloadOutlined, DisconnectOutlined, MobileOutlined,
+  CloudServerOutlined, DownloadOutlined, UploadOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -1155,6 +1156,7 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<any>(null);
   const [enabledProviders, setEnabledProviders] = useState<string[]>([]);
+  const [mode, setMode] = useState<'test' | 'live'>('test');
   const [form] = Form.useForm();
 
   const fetchConfig = useCallback(async () => {
@@ -1163,9 +1165,10 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
       const { data } = await api.get('/settings/kpay');
       setConfig(data);
       setEnabledProviders(data.enabledProviders || []);
+      setMode(data.mode === 'live' ? 'live' : 'test');
       form.setFieldsValue({
-        apiKey: data.apiKey || '',
-        callbackUrl: data.callbackUrl || 'https://backend.gfinancials.com/api/v1',
+        testApiKey: data.testApiKey || '',
+        liveApiKey: data.liveApiKey || '',
         enabled: data.enabled,
       });
     } catch {
@@ -1192,20 +1195,32 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
     setSaving(true);
     try {
       const payload: any = {
-        apiKey: values.apiKey,
-        callbackUrl: values.callbackUrl,
+        mode,
+        testApiKey: values.testApiKey,
+        liveApiKey: values.liveApiKey,
         enabled: values.enabled,
         enabledProviders,
       };
-      if (values.secretKey) payload.secretKey = values.secretKey;
+      if (values.testSecretKey) payload.testSecretKey = values.testSecretKey;
+      if (values.liveSecretKey) payload.liveSecretKey = values.liveSecretKey;
       await api.post('/settings/kpay', payload);
       message.success('Configuration KPay sauvegardee');
-      form.setFieldValue('secretKey', '');
+      form.setFieldsValue({ testSecretKey: '', liveSecretKey: '' });
       fetchConfig();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Erreur de sauvegarde');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleModeChange = async (newMode: 'test' | 'live') => {
+    setMode(newMode);
+    try {
+      await api.post('/settings/kpay', { mode: newMode });
+      message.success(`Mode ${newMode === 'live' ? 'LIVE (Production)' : 'TEST (Sandbox)'} active`);
+    } catch {
+      message.error('Erreur changement de mode');
     }
   };
 
@@ -1217,34 +1232,103 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
 
       <Divider />
 
+      {/* Mode Toggle Live / Test */}
+      <Card
+        size="small"
+        style={{
+          borderRadius: 10,
+          marginBottom: 20,
+          border: mode === 'live' ? '2px solid #52c41a' : '2px solid #faad14',
+          background: mode === 'live' ? '#f6ffed' : '#fffbe6',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Text strong style={{ fontSize: 16 }}>
+              {mode === 'live' ? '🟢 Mode LIVE (Production)' : '🟡 Mode TEST (Sandbox)'}
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {mode === 'live'
+                ? 'Les transactions utilisent les cles de production. L\'argent reel est debite.'
+                : 'Les transactions utilisent les cles de test. Aucun mouvement reel.'}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              type={mode === 'test' ? 'primary' : 'default'}
+              style={mode === 'test' ? { background: '#faad14', borderColor: '#faad14' } : {}}
+              onClick={() => handleModeChange('test')}
+              disabled={!canEdit}
+            >
+              Test
+            </Button>
+            <Button
+              type={mode === 'live' ? 'primary' : 'default'}
+              style={mode === 'live' ? { background: '#52c41a', borderColor: '#52c41a' } : {}}
+              onClick={() => handleModeChange('live')}
+              disabled={!canEdit}
+            >
+              Live
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       <Alert
         type="info"
         showIcon
         style={{ marginBottom: 20, borderRadius: 8 }}
         message="Configuration KPay Mobile Money — Multi-pays"
-        description="Configurez vos cles API KPay et activez les pays et operateurs souhaites. KPay supporte 20 pays africains et 42+ operateurs Mobile Money."
+        description="Configurez vos cles API Test et Live separement. Basculez entre les modes avec le toggle ci-dessus."
       />
 
       <Form form={form} layout="vertical" onFinish={handleSave} disabled={!canEdit}>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item label="Cle API (X-API-Key)" name="apiKey" rules={[{ required: true, message: 'Requis' }]}>
-              <Input placeholder="kpay_live_xxxxxxxxxxxxxxxx" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label={<span>Cle Secrete (X-Secret-Key) {config?.secretKeyConfigured && <Tag color="green" style={{ marginLeft: 8 }}>Configuree</Tag>}</span>}
-              name="secretKey"
-            >
-              <Input.Password placeholder={config?.secretKeyConfigured ? "Laisser vide pour conserver l'actuelle" : 'sk_live_xxxxxxxxxxxxxxxx'} />
-            </Form.Item>
-          </Col>
-        </Row>
+        {/* Cles TEST */}
+        <Card
+          size="small"
+          title={<span style={{ color: '#faad14' }}>🟡 Cles TEST (Sandbox)</span>}
+          style={{ marginBottom: 16, borderRadius: 8, border: '1px solid #faad14' }}
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Cle API Test" name="testApiKey">
+                <Input placeholder="kpay_test_xxxxxxxxxxxxxxxx" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label={<span>Cle Secrete Test {config?.testSecretKeyConfigured && <Tag color="green" style={{ marginLeft: 8 }}>Configuree</Tag>}</span>}
+                name="testSecretKey"
+              >
+                <Input.Password placeholder={config?.testSecretKeyConfigured ? "Laisser vide pour conserver" : 'Cle secrete test'} />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
 
-        <Form.Item label="URL de Callback (Webhook)" name="callbackUrl" rules={[{ required: true, message: 'Requis' }]}>
-          <Input placeholder="https://backend.gfinancials.com/api/v1" />
-        </Form.Item>
+        {/* Cles LIVE */}
+        <Card
+          size="small"
+          title={<span style={{ color: '#52c41a' }}>🟢 Cles LIVE (Production)</span>}
+          style={{ marginBottom: 16, borderRadius: 8, border: '1px solid #52c41a' }}
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Cle API Live" name="liveApiKey">
+                <Input placeholder="kpay_live_xxxxxxxxxxxxxxxx" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label={<span>Cle Secrete Live {config?.liveSecretKeyConfigured && <Tag color="green" style={{ marginLeft: 8 }}>Configuree</Tag>}</span>}
+                name="liveSecretKey"
+              >
+                <Input.Password placeholder={config?.liveSecretKeyConfigured ? "Laisser vide pour conserver" : 'Cle secrete live'} />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
 
         <Form.Item label="Activer KPay" name="enabled" valuePropName="checked">
           <Switch checkedChildren="Actif" unCheckedChildren="Inactif" />
@@ -1315,8 +1399,9 @@ function KPayTab({ canEdit }: { canEdit: boolean }) {
         <Title level={5} style={{ marginBottom: 12 }}>Informations</Title>
         <Descriptions column={1} size="small">
           <Descriptions.Item label="URL API KPay">https://admin.kpay.site</Descriptions.Item>
+          <Descriptions.Item label="Mode actif"><Tag color={mode === 'live' ? 'green' : 'orange'}>{mode.toUpperCase()}</Tag></Descriptions.Item>
           <Descriptions.Item label="Pays disponibles">{KPAY_COUNTRIES.length} pays, {KPAY_COUNTRIES.reduce((a, c) => a + c.providers.length, 0)} operateurs</Descriptions.Item>
-          <Descriptions.Item label="Webhook KPay">Configurez dans le dashboard KPay l'URL : <Text code copyable>{(form.getFieldValue('callbackUrl') || 'https://backend.gfinancials.com/api/v1') + '/pawapay/webhook'}</Text></Descriptions.Item>
+          <Descriptions.Item label="Verification statuts">Automatique toutes les 30 secondes (Job Queue)</Descriptions.Item>
         </Descriptions>
       </Card>
     </div>
@@ -1527,6 +1612,104 @@ function KPayTopUpSection({ canEdit }: { canEdit: boolean }) {
 }
 
 // ===================== PAGE PRINCIPALE =====================
+// ==================== BACKUP / RESTAURATION ====================
+function BackupTab({ canEdit }: { canEdit: boolean }) {
+  const [backups, setBackups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [restoring, setRestoring] = useState('');
+
+  const fetchBackups = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/settings/backups');
+      setBackups(res.data.backups || []);
+    } catch { message.error('Erreur chargement backups'); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchBackups(); }, [fetchBackups]);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const res = await api.post('/settings/backups/create');
+      if (res.data.success) {
+        message.success(`Backup cree: ${res.data.filename}`);
+        fetchBackups();
+      } else {
+        message.error(res.data.error || 'Erreur creation backup');
+      }
+    } catch { message.error('Erreur creation backup'); }
+    setCreating(false);
+  };
+
+  const handleRestore = async (filename: string) => {
+    setRestoring(filename);
+    try {
+      const res = await api.post('/settings/backups/restore', { filename });
+      if (res.data.success) {
+        message.success(res.data.message);
+      } else {
+        message.error(res.data.error || 'Erreur restauration');
+      }
+    } catch { message.error('Erreur restauration'); }
+    setRestoring('');
+  };
+
+  return (
+    <div>
+      <Alert
+        type="info" showIcon
+        message="Sauvegarde et restauration de la base de donnees MySQL"
+        description="Les backups sont stockes sur le serveur dans /var/www/backups. Il est recommande de faire un backup avant toute mise a jour majeure."
+        style={{ marginBottom: 16 }}
+      />
+
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<DownloadOutlined />} loading={creating} onClick={handleCreate} disabled={!canEdit}>
+          Creer un backup maintenant
+        </Button>
+        <Button icon={<ReloadOutlined />} onClick={fetchBackups}>Rafraichir</Button>
+      </Space>
+
+      <Table
+        dataSource={backups}
+        loading={loading}
+        rowKey="filename"
+        pagination={false}
+        columns={[
+          { title: 'Fichier', dataIndex: 'filename', render: (v: string) => <Tag icon={<CloudServerOutlined />}>{v}</Tag> },
+          { title: 'Taille', dataIndex: 'sizeHuman' },
+          { title: 'Date', dataIndex: 'createdAt', render: (v: string) => v ? new Date(v).toLocaleString('fr-FR') : '-' },
+          {
+            title: 'Actions', key: 'actions',
+            render: (_: any, r: any) => (
+              <Space>
+                <Button
+                  size="small"
+                  icon={<UploadOutlined />}
+                  loading={restoring === r.filename}
+                  onClick={() => Modal.confirm({
+                    title: 'Restaurer ce backup ?',
+                    content: `Attention : cette action va ecraser la base de donnees actuelle avec le contenu de ${r.filename}. Cette operation est irreversible.`,
+                    okText: 'Restaurer',
+                    okType: 'danger',
+                    onOk: () => handleRestore(r.filename),
+                  })}
+                  disabled={!canEdit}
+                >
+                  Restaurer
+                </Button>
+              </Space>
+            ),
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
 export default function Settings() {
   const { canUpdate, isReadOnly } = usePermissions();
   const canEdit = canUpdate('SETTINGS') && !isReadOnly;
@@ -1607,6 +1790,11 @@ export default function Settings() {
       key: 'security',
       label: <span><SafetyOutlined /> Securite & 2FA</span>,
       children: <SecurityTab />,
+    },
+    {
+      key: 'backup',
+      label: <span><CloudServerOutlined /> Backup & Restauration</span>,
+      children: <BackupTab canEdit={canEdit} />,
     },
   ];
 

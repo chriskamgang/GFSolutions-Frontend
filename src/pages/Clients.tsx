@@ -108,6 +108,11 @@ export default function Clients() {
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState<any>(null);
 
+  // Import Excel
+  const [excelImportOpen, setExcelImportOpen] = useState(false);
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [excelResults, setExcelResults] = useState<any>(null);
+
   // Fusion doublons
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [merging, setMerging] = useState(false);
@@ -589,6 +594,45 @@ export default function Clients() {
       setImporting(false);
     }
     return false; // prevent auto-upload
+  };
+
+  // === IMPORT EXCEL ===
+  const handleImportExcel = async (file: any) => {
+    setImportingExcel(true);
+    setExcelResults(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post('/clients/import-excel/clients', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setExcelResults(data);
+      if (data.created > 0) {
+        message.success(`${data.created} clients importes avec succes`);
+        fetchClients();
+      }
+      if (data.errors?.length > 0) {
+        message.warning(`${data.errors.length} lignes en erreur`);
+      }
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur lors de l\'import Excel');
+    } finally {
+      setImportingExcel(false);
+    }
+    return false;
+  };
+
+  const downloadExcelTemplate = async () => {
+    try {
+      const res = await api.get('/clients/import-excel/template/clients', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'template_clients.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch { message.error('Erreur telechargement template'); }
   };
 
   // === FUSION DOUBLONS ===
@@ -1368,6 +1412,7 @@ export default function Clients() {
                 <Button icon={<DownloadOutlined />} loading={exporting}>Exporter</Button>
               </Dropdown>
               {canCreate('CLIENTS') && <Button icon={<UploadOutlined />} onClick={() => { setImportModalOpen(true); setImportResults(null); }}>Import CSV</Button>}
+              {canCreate('CLIENTS') && <Button icon={<FileExcelOutlined />} style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => { setExcelImportOpen(true); setExcelResults(null); }}>Import Excel</Button>}
               {canUpdate('CLIENTS') && <Button icon={<MergeCellsOutlined />} onClick={() => setMergeModalOpen(true)}>Fusion doublons</Button>}
               {canCreate('CLIENTS') && <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>{typeFilter === 'MORALE' ? 'Nouvelle personne morale' : 'Nouveau client'}</Button>}
             </Space>
@@ -1934,6 +1979,63 @@ export default function Clients() {
                   size="small"
                   pagination={false}
                 />
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal IMPORT EXCEL */}
+      <Modal
+        title={<span><FileExcelOutlined style={{ color: '#52c41a' }} /> Importer des clients depuis un fichier Excel (.xlsx)</span>}
+        open={excelImportOpen}
+        onCancel={() => setExcelImportOpen(false)}
+        footer={[<Button key="close" onClick={() => setExcelImportOpen(false)}>Fermer</Button>]}
+        width={650}
+      >
+        <Alert
+          type="info"
+          showIcon
+          message="Format attendu du fichier Excel"
+          description={
+            <div>
+              <Text>Colonnes attendues :</Text>
+              <br />
+              <Text code>nom, prenom, telephone, email, adresse, ville, region, genre, type_piece, numero_piece, profession, date_naissance</Text>
+              <br />
+              <Text type="secondary">Maximum 5000 lignes par import. Les doublons (meme telephone) sont ignores.</Text>
+            </div>
+          }
+          style={{ marginBottom: 16 }}
+        />
+        <Space style={{ marginBottom: 16 }}>
+          <Button icon={<DownloadOutlined />} onClick={downloadExcelTemplate}>
+            Telecharger le template Excel
+          </Button>
+        </Space>
+        <Upload.Dragger
+          accept=".xlsx,.xls"
+          showUploadList={false}
+          beforeUpload={handleImportExcel}
+          disabled={importingExcel}
+        >
+          <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 40, color: '#52c41a' }} /></p>
+          <p className="ant-upload-text">{importingExcel ? 'Import en cours...' : 'Cliquez ou glissez un fichier Excel ici'}</p>
+          <p className="ant-upload-hint">Fichier .xlsx ou .xls uniquement</p>
+        </Upload.Dragger>
+
+        {excelResults && (
+          <div style={{ marginTop: 16 }}>
+            <Alert
+              type={excelResults.errors?.length > 0 ? 'warning' : 'success'}
+              message={`Import termine : ${excelResults.created} clients crees, ${excelResults.skipped} ignores sur ${excelResults.total} lignes`}
+              style={{ marginBottom: 8 }}
+            />
+            {excelResults.errors?.length > 0 && (
+              <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                {excelResults.errors.map((err: string, i: number) => (
+                  <div key={i}><Text type="secondary">{err}</Text></div>
+                ))}
               </div>
             )}
           </div>

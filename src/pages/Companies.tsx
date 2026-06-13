@@ -23,8 +23,12 @@ export default function Companies() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [salaryHistory, setSalaryHistory] = useState<any[]>([]);
   const [salaryPayments, setSalaryPayments] = useState<{ employeeName: string; employeePhone: string; amount: number }[]>([]);
+  const [addEmployeeVisible, setAddEmployeeVisible] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+  const [employeeForm] = Form.useForm();
   const { canCreate, isReadOnly } = usePermissions();
 
   const fetchCompanies = async () => {
@@ -64,6 +68,56 @@ export default function Companies() {
       setSalaryHistory(histRes.data || []);
       setDetailVisible(true);
     } catch { message.error('Erreur chargement detail'); }
+  };
+
+  const handleSearchClient = async () => {
+    const values = employeeForm.getFieldsValue();
+    const query = values.searchQuery?.trim();
+    if (!query) return;
+    setSearching(true);
+    try {
+      const { data } = await api.get('/clients', { params: { search: query, limit: 10 } });
+      const clients = data.data || data;
+      // Filtrer ceux qui n'ont pas deja une entreprise
+      setSearchResults(clients.filter((c: any) => !c.companyId));
+    } catch { message.error('Erreur recherche'); }
+    finally { setSearching(false); }
+  };
+
+  const handleAddEmployee = async (clientId: string) => {
+    if (!selectedCompany) return;
+    try {
+      await api.post(`/companies/${selectedCompany.id}/employees`, { clientId });
+      message.success('Employe ajoute avec succes');
+      setAddEmployeeVisible(false);
+      setSearchResults([]);
+      employeeForm.resetFields();
+      // Recharger les employes
+      const empRes = await api.get(`/companies/${selectedCompany.id}/employees`);
+      setEmployees(empRes.data || []);
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur ajout employe');
+    }
+  };
+
+  const handleRemoveEmployee = async (clientId: string) => {
+    if (!selectedCompany) return;
+    Modal.confirm({
+      title: 'Retirer cet employe ?',
+      content: 'L\'employe sera dissocie de cette entreprise. Son compte reste actif.',
+      okText: 'Retirer',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await api.delete(`/companies/${selectedCompany.id}/employees/${clientId}`);
+          message.success('Employe retire');
+          const empRes = await api.get(`/companies/${selectedCompany.id}/employees`);
+          setEmployees(empRes.data || []);
+        } catch (err: any) {
+          message.error(err.response?.data?.message || 'Erreur suppression');
+        }
+      },
+    });
   };
 
   const openSalaryModal = () => {
@@ -129,6 +183,12 @@ export default function Companies() {
         return acc ? `${acc.accountNumber} (${Number(acc.balance).toLocaleString('fr-FR')} F)` : <Text type="secondary">Aucun</Text>;
       },
     },
+    ...(!isReadOnly ? [{
+      title: 'Actions', key: 'actions', width: 80,
+      render: (_: any, r: any) => (
+        <Button size="small" danger onClick={() => handleRemoveEmployee(r.id)}>Retirer</Button>
+      ),
+    }] : []),
   ];
 
   const batchColumns = [
@@ -230,7 +290,15 @@ export default function Companies() {
                 key: 'employees',
                 label: <span><TeamOutlined /> Employes ({employees.length})</span>,
                 children: (
-                  <Table dataSource={employees} columns={employeeColumns} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
+                  <div>
+                    {!isReadOnly && (
+                      <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: 16 }}
+                        onClick={() => { setSearchResults([]); employeeForm.resetFields(); setAddEmployeeVisible(true); }}>
+                        Ajouter un employe
+                      </Button>
+                    )}
+                    <Table dataSource={employees} columns={employeeColumns} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
+                  </div>
                 ),
               },
               {
@@ -300,6 +368,61 @@ export default function Companies() {
             );
           }}
         />
+      </Modal>
+
+      {/* Modal ajout employe */}
+      <Modal
+        title={`Ajouter un employe — ${selectedCompany?.name}`}
+        open={addEmployeeVisible}
+        onCancel={() => setAddEmployeeVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Alert
+          type="info"
+          showIcon
+          message="Recherchez un client existant par nom, telephone ou numero client pour le rattacher a cette entreprise."
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={employeeForm} layout="inline" style={{ marginBottom: 16 }}>
+          <Form.Item name="searchQuery" style={{ flex: 1 }}>
+            <Input
+              placeholder="Nom, telephone ou N° client..."
+              onPressEnter={handleSearchClient}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" onClick={handleSearchClient} loading={searching}>
+              Rechercher
+            </Button>
+          </Form.Item>
+        </Form>
+
+        {searchResults.length > 0 && (
+          <Table
+            dataSource={searchResults}
+            rowKey="id"
+            size="small"
+            pagination={false}
+            columns={[
+              { title: 'Nom', key: 'name', render: (_: any, r: any) => `${r.firstName || ''} ${r.lastName || ''}`.trim() },
+              { title: 'N° Client', dataIndex: 'clientNumber' },
+              { title: 'Telephone', dataIndex: 'phone' },
+              { title: 'Type', dataIndex: 'clientType', render: (v: string) => <Tag>{v}</Tag> },
+              {
+                title: '', key: 'action', width: 100,
+                render: (_: any, r: any) => (
+                  <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => handleAddEmployee(r.id)}>
+                    Ajouter
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        )}
+        {searchResults.length === 0 && searching === false && employeeForm.getFieldValue('searchQuery') && (
+          <Alert type="warning" showIcon message="Aucun client disponible trouve. Verifiez les criteres ou creez d'abord le client." />
+        )}
       </Modal>
     </div>
   );

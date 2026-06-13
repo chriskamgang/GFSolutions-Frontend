@@ -22,6 +22,13 @@ const STATUS_COLOR: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   ACTIVE: 'Actif', PENDING: 'En attente', SUSPENDED: 'Suspendu',
 };
+const TYPE_COLOR: Record<string, string> = {
+  PAYMENT: 'blue', ONBOARDING: 'purple', BOTH: 'cyan',
+};
+const TYPE_LABEL: Record<string, string> = {
+  PAYMENT: 'Paiement', ONBOARDING: 'Onboarding', BOTH: 'Les deux',
+};
+
 const PAYMENT_STATUS_COLOR: Record<string, string> = {
   COMPLETED: 'green', PENDING: 'orange', FAILED: 'red', EXPIRED: 'default', CANCELLED: 'red',
 };
@@ -145,6 +152,7 @@ export default function PaymentGateway() {
       phone: merchant.phone,
       website: merchant.website,
       description: merchant.description,
+      type: merchant.type || 'PAYMENT',
       webhookUrl: merchant.webhookUrl,
       returnUrl: merchant.returnUrl,
       commissionDepotPct: Number(merchant.commissionDepotPct),
@@ -217,6 +225,10 @@ export default function PaymentGateway() {
           {r.website && <Text type="secondary" style={{ fontSize: 11 }}>{r.website}</Text>}
         </Space>
       ),
+    },
+    {
+      title: 'Type', dataIndex: 'type', key: 'type', width: 110,
+      render: (t: string) => <Tag color={TYPE_COLOR[t] || 'default'} style={{ fontWeight: 600 }}>{TYPE_LABEL[t] || t || 'Paiement'}</Tag>,
     },
     {
       title: 'Compte GFS', key: 'account',
@@ -476,6 +488,14 @@ export default function PaymentGateway() {
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={2} placeholder="Activite du marchand..." />
           </Form.Item>
+          <Form.Item name="type" label="Type de marchand" initialValue="PAYMENT" rules={[{ required: true }]}
+            tooltip="PAYMENT = recoit des paiements, ONBOARDING = inscrit des clients, BOTH = les deux">
+            <Select options={[
+              { value: 'PAYMENT', label: 'Paiement — recoit des paiements clients' },
+              { value: 'ONBOARDING', label: 'Onboarding — inscrit des clients GFS' },
+              { value: 'BOTH', label: 'Les deux — paiements + onboarding' },
+            ]} />
+          </Form.Item>
 
           <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>Compte & Agence</Divider>
           <Row gutter={16}>
@@ -636,6 +656,13 @@ export default function PaymentGateway() {
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={2} />
           </Form.Item>
+          <Form.Item name="type" label="Type de marchand" rules={[{ required: true }]}>
+            <Select options={[
+              { value: 'PAYMENT', label: 'Paiement' },
+              { value: 'ONBOARDING', label: 'Onboarding' },
+              { value: 'BOTH', label: 'Les deux' },
+            ]} />
+          </Form.Item>
 
           <Divider style={{ fontSize: 13, color: '#1B2A4A' }}>
             <PercentageOutlined /> Commission
@@ -682,6 +709,9 @@ export default function PaymentGateway() {
         {detailMerchant && (
           <Descriptions bordered column={2} size="small">
             <Descriptions.Item label="Nom" span={2}>{detailMerchant.name}</Descriptions.Item>
+            <Descriptions.Item label="Type">
+              <Tag color={TYPE_COLOR[detailMerchant.type] || 'default'} style={{ fontWeight: 700 }}>{TYPE_LABEL[detailMerchant.type] || 'Paiement'}</Tag>
+            </Descriptions.Item>
             <Descriptions.Item label="Email">{detailMerchant.email}</Descriptions.Item>
             <Descriptions.Item label="Telephone">{detailMerchant.phone || '-'}</Descriptions.Item>
             <Descriptions.Item label="Site web" span={2}>{detailMerchant.website || '-'}</Descriptions.Item>

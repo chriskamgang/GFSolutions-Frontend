@@ -22,6 +22,11 @@ const TYPE_OPTIONS = [
   { value: 'CURRENT', label: 'Compte Courant', color: 'blue' },
   { value: 'SAVINGS', label: 'Epargne', color: 'green' },
   { value: 'DAT', label: 'DAT (Depot a Terme)', color: 'orange' },
+  { value: 'SALARY', label: 'Compte Salaire', color: 'cyan' },
+  { value: 'JOINT', label: 'Compte Joint', color: 'geekblue' },
+  { value: 'ASSOCIATIF', label: 'Compte Associatif / Tontine', color: 'volcano' },
+  { value: 'INSTITUTIONNEL', label: 'Compte Institutionnel', color: 'gold' },
+  { value: 'SCOLARITE', label: 'Compte Scolarite', color: 'magenta' },
   { value: 'COLLECTE', label: 'Collecte / Tontine', color: 'purple' },
 ];
 

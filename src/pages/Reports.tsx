@@ -937,14 +937,180 @@ function TafireTab() {
   );
 }
 
+const TYPE_LABELS: Record<string, string> = {
+  DEPOSIT: 'Depot', WITHDRAWAL: 'Retrait', TRANSFER: 'Transfert',
+  EXTERNAL_TRANSFER: 'Virement externe', FEE: 'Frais', SALARY_PAYMENT: 'Salaire',
+  LOAN_DISBURSEMENT: 'Decaissement', LOAN_REPAYMENT: 'Remboursement',
+  CONTRIBUTION_PAYMENT: 'Cotisation', INTEREST: 'Interet',
+};
+
+const ACCT_TYPE_LABELS: Record<string, string> = {
+  SALARY: 'Salaire', CURRENT: 'Courant', SAVINGS: 'Epargne', DAT: 'DAT',
+  COLLECTE: 'Collecte', JOINT: 'Joint', SCOLARITE: 'Scolarite',
+};
+
+function FraisPercusTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [dates, setDates] = useState<[any, any]>([dayjs().startOf('month'), dayjs()]);
+
+  const fetchData = (start?: string, end?: string) => {
+    setLoading(true);
+    const params: any = {};
+    if (start) params.startDate = start;
+    if (end) params.endDate = end;
+    api.get('/reports/fees', { params })
+      .then(r => setData(r.data))
+      .catch(() => message.error('Erreur chargement rapport frais'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchData(dates[0]?.format('YYYY-MM-DD'), dates[1]?.format('YYYY-MM-DD'));
+  }, []);
+
+  const handleSearch = () => {
+    fetchData(dates[0]?.format('YYYY-MM-DD'), dates[1]?.format('YYYY-MM-DD'));
+  };
+
+  const handleExportPdf = () => {
+    if (!data?.details?.length) return;
+    exportToPdf({
+      title: 'Rapport des Frais Percus',
+      subtitle: `Periode: ${dayjs(data.period.start).format('DD/MM/YYYY')} - ${dayjs(data.period.end).format('DD/MM/YYYY')}`,
+      filename: 'Rapport_Frais',
+      orientation: 'landscape',
+      summary: [
+        { label: 'Total transactions', value: String(data.summary.totalTransactions) },
+        { label: 'Frais percus', value: `${fmt(data.summary.totalFees)} FCFA` },
+        { label: 'Taxes (TVA)', value: `${fmt(data.summary.totalTax)} FCFA` },
+        { label: 'Total general', value: `${fmt(data.summary.grandTotal)} FCFA` },
+      ],
+      columns: [
+        { title: 'Date', key: 'date', format: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm') },
+        { title: 'Reference', key: 'reference' },
+        { title: 'Type', key: 'type', format: (v: string) => TYPE_LABELS[v] || v },
+        { title: 'Client', key: 'clientName' },
+        { title: 'N° Compte', key: 'accountNumber' },
+        { title: 'Type Compte', key: 'accountType', format: (v: string) => ACCT_TYPE_LABELS[v] || v },
+        { title: 'Montant (FCFA)', key: 'amount', format: (v: number) => fmt(v) },
+        { title: 'Frais (FCFA)', key: 'fees', format: (v: number) => fmt(v) },
+        { title: 'Taxes (FCFA)', key: 'tax', format: (v: number) => fmt(v) },
+        { title: 'Total Frais', key: 'totalFees', format: (v: number) => fmt(v) },
+      ],
+      data: data.details,
+    });
+  };
+
+  const handleExportExcel = () => {
+    if (!data?.details?.length) return;
+    exportToExcel(data.details, [
+      { title: 'Date', key: 'date', format: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm') },
+      { title: 'Reference', key: 'reference' },
+      { title: 'Type', key: 'type', format: (v: string) => TYPE_LABELS[v] || v },
+      { title: 'Client', key: 'clientName' },
+      { title: 'N° Compte', key: 'accountNumber' },
+      { title: 'Type Compte', key: 'accountType', format: (v: string) => ACCT_TYPE_LABELS[v] || v },
+      { title: 'Montant', key: 'amount' },
+      { title: 'Frais', key: 'fees' },
+      { title: 'Taxes', key: 'tax' },
+      { title: 'Total Frais', key: 'totalFees' },
+    ], 'Rapport_Frais');
+  };
+
+  const detailColumns = [
+    { title: 'Date', dataIndex: 'date', key: 'date', width: 140, render: (v: string) => dayjs(v).format('DD/MM/YYYY HH:mm') },
+    { title: 'Reference', dataIndex: 'reference', key: 'ref', width: 180, ellipsis: true },
+    { title: 'Type', dataIndex: 'type', key: 'type', width: 100, render: (v: string) => <Tag color={v === 'DEPOSIT' ? 'green' : v === 'WITHDRAWAL' ? 'red' : 'blue'}>{TYPE_LABELS[v] || v}</Tag> },
+    { title: 'Client', dataIndex: 'clientName', key: 'client', width: 160, ellipsis: true },
+    { title: 'N° Compte', dataIndex: 'accountNumber', key: 'acct', width: 120 },
+    { title: 'Type Compte', dataIndex: 'accountType', key: 'acctType', width: 100, render: (v: string) => ACCT_TYPE_LABELS[v] || v },
+    { title: 'Montant', dataIndex: 'amount', key: 'amt', width: 110, align: 'right' as const, render: (v: number) => `${fmt(v)} F` },
+    { title: 'Frais', dataIndex: 'fees', key: 'fees', width: 90, align: 'right' as const, render: (v: number) => <span style={{ color: '#F5A623', fontWeight: 600 }}>{fmt(v)}</span> },
+    { title: 'Taxes', dataIndex: 'tax', key: 'tax', width: 80, align: 'right' as const, render: (v: number) => fmt(v) },
+    { title: 'Total', dataIndex: 'totalFees', key: 'total', width: 100, align: 'right' as const, render: (v: number) => <span style={{ fontWeight: 700, color: '#1B2A4A' }}>{fmt(v)} F</span> },
+  ];
+
+  return (
+    <div>
+      <Space style={{ marginBottom: 16 }} wrap>
+        <DatePicker.RangePicker value={dates as any} onChange={(v: any) => setDates(v || [dayjs().startOf('month'), dayjs()])} format="DD/MM/YYYY" />
+        <Button type="primary" onClick={handleSearch} loading={loading}>Rechercher</Button>
+        <Button icon={<FilePdfOutlined />} onClick={handleExportPdf} disabled={!data?.details?.length}>PDF</Button>
+        <Button icon={<DownloadOutlined />} onClick={handleExportExcel} disabled={!data?.details?.length}>Excel</Button>
+      </Space>
+
+      {data && (
+        <>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={12} sm={6}><Card size="small"><Statistic title="Transactions" value={data.summary.totalTransactions} /></Card></Col>
+            <Col xs={12} sm={6}><Card size="small"><Statistic title="Frais percus" value={data.summary.totalFees} suffix="FCFA" valueStyle={{ color: '#F5A623' }} /></Card></Col>
+            <Col xs={12} sm={6}><Card size="small"><Statistic title="Taxes (TVA)" value={data.summary.totalTax} suffix="FCFA" /></Card></Col>
+            <Col xs={12} sm={6}><Card size="small"><Statistic title="Total general" value={data.summary.grandTotal} suffix="FCFA" valueStyle={{ color: '#1B2A4A', fontWeight: 700 }} /></Card></Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} md={12}>
+              <Card size="small" title="Par type de transaction">
+                <Table size="small" pagination={false}
+                  dataSource={(data.byTransactionType || []).map((r: any, i: number) => ({ key: i, ...r }))}
+                  columns={[
+                    { title: 'Type', dataIndex: 'type', render: (v: string) => TYPE_LABELS[v] || v },
+                    { title: 'Nb', dataIndex: 'count', align: 'center' as const },
+                    { title: 'Frais', dataIndex: 'totalFees', align: 'right' as const, render: (v: number) => `${fmt(v)} F` },
+                    { title: 'Taxes', dataIndex: 'totalTax', align: 'right' as const, render: (v: number) => `${fmt(v)} F` },
+                    { title: 'Total', dataIndex: 'grandTotal', align: 'right' as const, render: (v: number) => <b>{fmt(v)} F</b> },
+                  ]}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card size="small" title="Par type de compte">
+                <Table size="small" pagination={false}
+                  dataSource={(data.byAccountType || []).map((r: any, i: number) => ({ key: i, ...r }))}
+                  columns={[
+                    { title: 'Compte', dataIndex: 'accountType', render: (v: string) => ACCT_TYPE_LABELS[v] || v },
+                    { title: 'Nb', dataIndex: 'count', align: 'center' as const },
+                    { title: 'Frais', dataIndex: 'totalFees', align: 'right' as const, render: (v: number) => `${fmt(v)} F` },
+                    { title: 'Taxes', dataIndex: 'totalTax', align: 'right' as const, render: (v: number) => `${fmt(v)} F` },
+                    { title: 'Total', dataIndex: 'grandTotal', align: 'right' as const, render: (v: number) => <b>{fmt(v)} F</b> },
+                  ]}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <Card size="small" title={`Detail des frais (${data.details?.length || 0} transactions)`}>
+            <Table size="small" scroll={{ x: 1200 }} pagination={{ pageSize: 20, showTotal: (t: number) => `${t} transaction(s)` }}
+              dataSource={(data.details || []).map((r: any, i: number) => ({ key: i, ...r }))}
+              columns={detailColumns}
+              summary={() => (
+                <Table.Summary fixed>
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={7}><b>TOTAL</b></Table.Summary.Cell>
+                    <Table.Summary.Cell index={7} align="right"><b style={{ color: '#F5A623' }}>{fmt(data.summary.totalFees)}</b></Table.Summary.Cell>
+                    <Table.Summary.Cell index={8} align="right"><b>{fmt(data.summary.totalTax)}</b></Table.Summary.Cell>
+                    <Table.Summary.Cell index={9} align="right"><b style={{ color: '#1B2A4A' }}>{fmt(data.summary.grandTotal)} F</b></Table.Summary.Cell>
+                  </Table.Summary.Row>
+                </Table.Summary>
+              )}
+            />
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Reports() {
   const tabItems = [
-    { key: 'kpis', label: <span><BarChartOutlined /> KPIs & Ratios</span>, children: <KPIsTab /> },
-    { key: 'cobac', label: <span><SafetyOutlined /> Rapport COBAC</span>, children: <RapportCOBACTab /> },
-    { key: 'monthly', label: <span><DollarOutlined /> Rapport mensuel</span>, children: <RapportMensuelTab /> },
+    { key: 'kpis', label: <span><BarChartOutlined /> KPIs</span>, children: <KPIsTab /> },
+    { key: 'frais', label: <span><DollarOutlined /> Frais percus</span>, children: <FraisPercusTab /> },
+    { key: 'cobac', label: <span><SafetyOutlined /> COBAC</span>, children: <RapportCOBACTab /> },
+    { key: 'monthly', label: <span><DollarOutlined /> Mensuel</span>, children: <RapportMensuelTab /> },
     { key: 'evolution', label: <span><RiseOutlined /> Evolution 12 mois</span>, children: <EvolutionTab /> },
-    { key: 'ouvertures', label: <span><FileAddOutlined /> Ouvertures de comptes</span>, children: <OuverturesComptesTab /> },
-    { key: 'provisionnement', label: <span><SafetyOutlined /> Provisionnement COBAC</span>, children: <ProvisionnementTab /> },
+    { key: 'ouvertures', label: <span><FileAddOutlined /> Ouvertures</span>, children: <OuverturesComptesTab /> },
+    { key: 'provisionnement', label: <span><SafetyOutlined /> Provisionnement</span>, children: <ProvisionnementTab /> },
     { key: 'tafire', label: <span><FundProjectionScreenOutlined /> TAFIRE</span>, children: <TafireTab /> },
   ];
 
@@ -958,7 +1124,7 @@ export default function Reports() {
       </div>
 
       <Card style={{ borderRadius: 8 }}>
-        <Tabs items={tabItems} />
+        <Tabs items={tabItems} tabPosition="top" type="card" />
       </Card>
     </div>
   );

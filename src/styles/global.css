@@ -92,3 +92,78 @@ body {
 .treasury-card.cyan {
   background: linear-gradient(135deg, #13c2c2 0%, #08979c 100%);
 }
+
+/* ===== RESPONSIVE ===== */
+
+/* Tables horizontally scrollable on small screens */
+.ant-table-wrapper {
+  overflow-x: auto;
+}
+
+@media (max-width: 992px) {
+  .content-card {
+    padding: 16px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-header h2 {
+    font-size: 18px;
+  }
+
+  /* Ant Design stat cards stack better */
+  .ant-col {
+    min-width: 0;
+  }
+
+  /* Modal full width on mobile */
+  .ant-modal {
+    max-width: calc(100vw - 24px) !important;
+    margin: 12px auto !important;
+  }
+
+  .ant-modal .ant-modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* Descriptions responsive */
+  .ant-descriptions {
+    overflow-x: auto;
+  }
+
+  /* Tabs scroll on mobile */
+  .ant-tabs-nav {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 576px) {
+  .content-card {
+    padding: 12px;
+    border-radius: 6px;
+  }
+
+  .page-header h2 {
+    font-size: 16px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-card .ant-statistic-content-value {
+    font-size: 18px !important;
+  }
+
+  .stat-card .ant-statistic-title {
+    font-size: 11px;
+  }
+
+  /* Form items tighter on mobile */
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+}

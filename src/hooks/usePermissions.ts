@@ -5,24 +5,42 @@ import { useAuth } from '../context/AuthContext';
  * Si une route n'est pas listee, elle est accessible a tous les roles connectes.
  */
 const ROUTE_PERMISSIONS: Record<string, string[]> = {
+  // Clientele
   '/clients': ['CLIENTS:READ'],
+  '/clients?type=MORALE': ['CLIENTS:READ'],
+  '/solidarity-groups': ['CLIENTS:READ'],
+  // Operations
   '/accounts': ['ACCOUNTS:READ'],
   '/transactions': ['TRANSACTIONS:READ'],
+  '/mobile-money': ['TRANSACTIONS:CREATE'],
+  '/bill-payments': ['TRANSACTIONS:CREATE'],
+  '/checkbooks': ['ACCOUNTS:UPDATE'],
+  '/account-statements': ['ACCOUNTS:READ'],
+  // Epargne
   '/savings': ['CONTRIBUTIONS:READ'],
+  '/tontines': ['CONTRIBUTIONS:READ'],
+  '/savings-goals': ['CONTRIBUTIONS:READ'],
+  // Credits
   '/credits': ['CREDITS:READ'],
   '/credits/simulator': ['CREDITS:READ'],
   '/credits/approved': ['CREDITS:READ'],
   '/credits/pending': ['CREDITS:UPDATE'],
   '/credits/scoring': ['CREDITS:READ'],
-  '/treasury': ['TRANSACTIONS:READ'],
+  // Comptabilite
+  '/treasury': ['ACCOUNTING:READ'],
   '/accounting': ['ACCOUNTING:READ'],
   '/reports': ['REPORTS:READ'],
+  '/aml-alerts': ['ACCOUNTING:READ'],
+  // Administration
   '/companies': ['COMPANIES:READ'],
   '/agencies': ['AGENCIES:READ'],
   '/users': ['USERS:READ'],
   '/roles': ['ROLES:READ'],
   '/audit': ['AUDIT:READ'],
   '/settings': ['SETTINGS:READ'],
+  '/callbox': ['SETTINGS:READ'],
+  '/payment-gateway': ['SETTINGS:READ'],
+  '/notifications': ['SETTINGS:READ'],
 };
 
 export function usePermissions() {

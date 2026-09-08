@@ -120,8 +120,8 @@ export default function Accounts() {
     return interest;
   };
 
-  const typeColors: Record<string, string> = { CURRENT: 'blue', SAVINGS: 'green', DAT: 'purple' };
-  const typeLabels: Record<string, string> = { CURRENT: 'Courant', SAVINGS: 'Epargne', DAT: 'DAT' };
+  const typeColors: Record<string, string> = { CURRENT: 'blue', SAVINGS: 'green', DAT: 'purple', SALARY: 'cyan', JOINT: 'geekblue', ASSOCIATIF: 'volcano', INSTITUTIONNEL: 'gold', SCOLARITE: 'magenta', COLLECTE: 'lime' };
+  const typeLabels: Record<string, string> = { CURRENT: 'Courant', SAVINGS: 'Epargne', DAT: 'DAT', SALARY: 'Salaire', JOINT: 'Joint', ASSOCIATIF: 'Associatif', INSTITUTIONNEL: 'Institutionnel', SCOLARITE: 'Scolarite', COLLECTE: 'Collecte' };
   const statusLabels: Record<string, string> = { ACTIVE: 'Actif', DORMANT: 'Dormant', CLOSED: 'Ferme', SUSPENDED: 'Suspendu' };
 
   const columns = [
@@ -190,7 +190,7 @@ export default function Accounts() {
         <Row justify="space-between" align="middle">
           <Col>
             <Title level={4} style={{ margin: 0 }}><BankOutlined /> Comptes</Title>
-            <Text type="secondary">Gestion des comptes clients (courant, epargne, DAT)</Text>
+            <Text type="secondary">Gestion des comptes clients (courant, epargne, DAT, salaire, joint, associatif, institutionnel)</Text>
           </Col>
           <Col>
             <Space>

@@ -13,14 +13,16 @@ import {
   TeamOutlined, DeleteOutlined,
   CameraOutlined, WarningOutlined, UploadOutlined,
   MergeCellsOutlined, SwapOutlined, MobileOutlined,
+  DollarOutlined, SendOutlined,
 } from '@ant-design/icons';
 import { QRCodeSVG } from 'qrcode.react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import SignatureCanvas from 'react-signature-canvas';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
-import { exportToPdf } from '../utils/exportUtils';
+import { exportToPdf, generateAttestation } from '../utils/exportUtils';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -48,13 +50,15 @@ const REGIONS_CAMEROUN = [
 ];
 
 export default function Clients() {
+  const [searchParams] = useSearchParams();
+  const initialType = searchParams.get('type') === 'MORALE' ? 'MORALE' : 'PHYSIQUE';
   const { canCreate, canUpdate } = usePermissions();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
-  const [typeFilter, setTypeFilter] = useState<string>('PHYSIQUE');
+  const [typeFilter, setTypeFilter] = useState<string>(initialType);
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -112,6 +116,24 @@ export default function Clients() {
   const [excelImportOpen, setExcelImportOpen] = useState(false);
   const [importingExcel, setImportingExcel] = useState(false);
   const [excelResults, setExcelResults] = useState<any>(null);
+
+  // Employes & Salaires (PM)
+  const [pmEmployees, setPmEmployees] = useState<any[]>([]);
+  const [pmSalaryHistory, setPmSalaryHistory] = useState<any[]>([]);
+  const [addPmEmployeeVisible, setAddPmEmployeeVisible] = useState(false);
+  const [pmEmployeeSearchResults, setPmEmployeeSearchResults] = useState<any[]>([]);
+  const [pmEmployeeSearching, setPmEmployeeSearching] = useState(false);
+  const [pmEmployeeForm] = Form.useForm();
+  const [pmSalaryVisible, setPmSalaryVisible] = useState(false);
+  const [pmSalaryPayments, setPmSalaryPayments] = useState<{ employeeName: string; employeePhone: string; amount: number }[]>([]);
+  const [pmSalarySubmitting, setPmSalarySubmitting] = useState(false);
+
+  // Numeros de telephone du compte
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false);
+  const [phoneAccount, setPhoneAccount] = useState<any>(null);
+  const [phoneList, setPhoneList] = useState<string[]>([]);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [savingPhones, setSavingPhones] = useState(false);
 
   // Fusion doublons
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
@@ -220,8 +242,8 @@ export default function Clients() {
     if (!value) return Promise.resolve();
     const docType = form.getFieldValue('idDocumentType');
     if (docType === 'CNI') {
-      if (!/^\d{9}$/.test(value)) {
-        return Promise.reject('La CNI camerounaise doit contenir exactement 9 chiffres');
+      if (!/^[A-Za-z0-9]{9}$/.test(value)) {
+        return Promise.reject('La CNI camerounaise doit contenir exactement 9 caracteres alphanumeriques');
       }
     }
     return Promise.resolve();
@@ -298,6 +320,12 @@ export default function Clients() {
       setSelectedClient(data);
       setMandataires(data.mandataires || []);
       setDetailOpen(true);
+      if (data.clientType === 'MORALE') {
+        loadPmEmployees(data.id);
+      } else {
+        setPmEmployees([]);
+        setPmSalaryHistory([]);
+      }
     } catch {
       message.error('Erreur chargement details client');
     }
@@ -454,6 +482,30 @@ export default function Clients() {
       setInitialDepositEnabled(false);
       accountForm.resetFields();
       fetchClients(pagination.current);
+
+      // Proposer l'attestation de domiciliation
+      const clientName = newCreatedClient.clientType === 'MORALE'
+        ? newCreatedClient.raisonSociale
+        : `${newCreatedClient.firstName} ${newCreatedClient.lastName}`;
+      const agencyName = newCreatedClient.agency?.name || 'Siege';
+      const agencyCity = newCreatedClient.city || 'Douala';
+      Modal.confirm({
+        title: 'Attestation de domiciliation',
+        content: 'Voulez-vous generer l\'attestation de domiciliation de compte ?',
+        okText: 'Generer PDF',
+        cancelText: 'Plus tard',
+        onOk: () => {
+          generateAttestation({
+            clientName,
+            clientAddress: newCreatedClient.address || agencyCity,
+            accountNumber: data.accountNumber || data.account?.accountNumber || '',
+            accountType: selectedProduct?.name || 'Courant',
+            agencyName,
+            agencyCity,
+            directorName: currentUser.firstName ? `${currentUser.firstName} ${currentUser.lastName}` : 'Le Directeur',
+          });
+        },
+      });
     } catch (err: any) {
       if (err.response?.data?.message) message.error(err.response.data.message);
     }
@@ -568,6 +620,86 @@ export default function Clients() {
       message.success('Mandataire retire');
       setMandataires(prev => prev.filter((m: any) => m.id !== mandataireId));
     } catch { message.error('Erreur'); }
+  };
+
+  // === EMPLOYES & SALAIRES PM ===
+  const loadPmEmployees = async (clientId: string) => {
+    try {
+      const [empRes, histRes] = await Promise.all([
+        api.get(`/companies/employer/${clientId}/employees`),
+        api.get(`/companies/employer/${clientId}/salary-history`),
+      ]);
+      setPmEmployees(empRes.data || []);
+      setPmSalaryHistory(histRes.data || []);
+    } catch { /* ignore */ }
+  };
+
+  const handleSearchPmEmployee = async () => {
+    const query = pmEmployeeForm.getFieldValue('searchQuery')?.trim();
+    if (!query) return;
+    setPmEmployeeSearching(true);
+    try {
+      const { data } = await api.get('/clients', { params: { search: query, limit: 10, type: 'PHYSIQUE' } });
+      const clients = data.data || data;
+      setPmEmployeeSearchResults(clients.filter((c: any) => !c.employerClientId));
+    } catch { message.error('Erreur recherche'); }
+    finally { setPmEmployeeSearching(false); }
+  };
+
+  const handleAddPmEmployee = async (employeeClientId: string) => {
+    if (!selectedClient) return;
+    try {
+      await api.post(`/companies/employer/${selectedClient.id}/employees`, { clientId: employeeClientId });
+      message.success('Employe ajoute');
+      setAddPmEmployeeVisible(false);
+      setPmEmployeeSearchResults([]);
+      pmEmployeeForm.resetFields();
+      loadPmEmployees(selectedClient.id);
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur ajout employe');
+    }
+  };
+
+  const handleRemovePmEmployee = async (employeeClientId: string) => {
+    if (!selectedClient) return;
+    Modal.confirm({
+      title: 'Retirer cet employe ?',
+      content: 'L\'employe sera dissocie de cette personne morale. Son compte reste actif.',
+      okText: 'Retirer',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await api.delete(`/companies/employer/${selectedClient.id}/employees/${employeeClientId}`);
+          message.success('Employe retire');
+          loadPmEmployees(selectedClient.id);
+        } catch (err: any) {
+          message.error(err.response?.data?.message || 'Erreur');
+        }
+      },
+    });
+  };
+
+  const openPmSalaryModal = () => {
+    setPmSalaryPayments(pmEmployees.map(e => ({
+      employeeName: `${e.firstName} ${e.lastName}`,
+      employeePhone: e.phone,
+      amount: 0,
+    })));
+    setPmSalaryVisible(true);
+  };
+
+  const handleProcessPmSalary = async () => {
+    const validPayments = pmSalaryPayments.filter(p => p.amount > 0);
+    if (validPayments.length === 0) { message.warning('Aucun montant saisi'); return; }
+    try {
+      setPmSalarySubmitting(true);
+      await api.post(`/companies/employer/${selectedClient.id}/salary-batch`, { payments: validPayments });
+      message.success(`Virement traite : ${validPayments.length} employe(s)`);
+      setPmSalaryVisible(false);
+      loadPmEmployees(selectedClient.id);
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur virement');
+    } finally { setPmSalarySubmitting(false); }
   };
 
   // === IMPORT CSV ===
@@ -827,13 +959,13 @@ export default function Clients() {
           </Form.Item>
         </Col>
         <Col span={8}>
-          <Form.Item name="idDocumentNumber" label="N° de piece" rules={[{ required: true }, { validator: validateCNI }]} help={form.getFieldValue('idDocumentType') === 'CNI' ? '9 chiffres numeriques' : undefined}>
+          <Form.Item name="idDocumentNumber" label="N° de piece" rules={[{ required: true }, { validator: validateCNI }]} help={form.getFieldValue('idDocumentType') === 'CNI' ? '9 caracteres alphanumeriques' : undefined}>
             <Input
-              placeholder={form.getFieldValue('idDocumentType') === 'CNI' ? '123456789' : 'Numero de piece'}
+              placeholder={form.getFieldValue('idDocumentType') === 'CNI' ? 'Ex: 1234AB789' : 'Numero de piece'}
               maxLength={form.getFieldValue('idDocumentType') === 'CNI' ? 9 : undefined}
               onChange={(e) => {
                 if (form.getFieldValue('idDocumentType') === 'CNI') {
-                  const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 9);
+                  const v = e.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 9).toUpperCase();
                   form.setFieldsValue({ idDocumentNumber: v });
                 }
               }}
@@ -1269,8 +1401,34 @@ export default function Clients() {
           <Table dataSource={selectedClient.accounts || []} rowKey="id" size="small" pagination={false} columns={[
             { title: 'N° Compte', dataIndex: 'accountNumber' },
             { title: 'Type', dataIndex: 'type', render: (t: string) => <Tag>{t}</Tag> },
+            { title: 'Telephones', dataIndex: 'phoneNumbers', width: 180, render: (nums: string[] | null, acc: any) => {
+              const phones = Array.isArray(nums) ? nums : [];
+              return (
+                <Space size={4} wrap>
+                  {phones.length > 0 ? phones.map((p: string, i: number) => <Tag key={i} color="blue"><MobileOutlined /> {p}</Tag>) : <Text type="secondary" style={{ fontSize: 11 }}>—</Text>}
+                  <Button type="link" size="small" icon={<EditOutlined />} onClick={() => { setPhoneAccount(acc); setPhoneList(phones); setPhoneInput(''); setPhoneModalOpen(true); }} style={{ padding: 0 }} />
+                </Space>
+              );
+            }},
             { title: 'Solde (FCFA)', dataIndex: 'balance', render: (v: any) => Number(v).toLocaleString('fr-FR'), align: 'right' as const },
             { title: 'Statut', dataIndex: 'status', render: (s: string) => <Tag color={s === 'ACTIVE' ? 'green' : 'red'}>{s}</Tag> },
+            { title: 'Actions', key: 'actions', width: 130, render: (_: any, acc: any) => (
+              <Button size="small" icon={<DownloadOutlined />} onClick={() => {
+                const clientName = selectedClient.clientType === 'MORALE'
+                  ? selectedClient.raisonSociale
+                  : `${selectedClient.firstName} ${selectedClient.lastName}`;
+                const typeLabels: Record<string, string> = { CURRENT: 'Compte Courant', SAVINGS: 'Compte Epargne', DAT: 'Depot a Terme', SCOLARITE: 'Compte Scolarite', SALARY: 'Compte Salaire' };
+                generateAttestation({
+                  clientName,
+                  clientAddress: selectedClient.address || selectedClient.city || '',
+                  accountNumber: acc.accountNumber,
+                  accountType: typeLabels[acc.type] || acc.type,
+                  agencyName: selectedClient.agency?.name || 'Siege Social',
+                  agencyCity: selectedClient.city || 'Douala',
+                  directorName: currentUser.firstName ? `${currentUser.firstName} ${currentUser.lastName}` : 'Le Directeur',
+                });
+              }}>Attestation</Button>
+            )},
           ]} />
           {selectedClient.accounts?.length === 0 && (
             <Alert type="info" showIcon message="Ce client n'a aucun compte. Cliquez sur 'Ouvrir un compte' pour lui en creer un." style={{ marginTop: 12 }} />
@@ -1381,7 +1539,68 @@ export default function Clients() {
       ),
     };
 
-    return [infoTab, accountsTab, creditsTab, mandatairesTab, mandataireDeTab, qrTab].filter(Boolean);
+    const employeesTab = isMorale ? {
+      key: 'employees',
+      label: <span><TeamOutlined /> Employes ({pmEmployees.length})</span>,
+      children: (
+        <div>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+            <Text type="secondary">Clients personne physique rattaches comme employes de cette entite.</Text>
+            {canCreate('COMPANIES') && (
+              <Button type="primary" size="small" icon={<PlusOutlined />}
+                onClick={() => { setPmEmployeeSearchResults([]); pmEmployeeForm.resetFields(); setAddPmEmployeeVisible(true); }}>
+                Ajouter un employe
+              </Button>
+            )}
+          </div>
+          <Table dataSource={pmEmployees} rowKey="id" size="small" pagination={{ pageSize: 10 }} columns={[
+            { title: 'Nom', key: 'name', render: (_: any, r: any) => `${r.firstName} ${r.lastName}` },
+            { title: 'N° Client', dataIndex: 'clientNumber' },
+            { title: 'Telephone', dataIndex: 'phone' },
+            { title: 'Compte courant', key: 'account',
+              render: (_: any, r: any) => {
+                const acc = r.accounts?.find((a: any) => a.type === 'CURRENT');
+                return acc ? `${acc.accountNumber} (${Number(acc.balance).toLocaleString('fr-FR')} F)` : <Text type="secondary">Aucun</Text>;
+              },
+            },
+            ...(canCreate('COMPANIES') ? [{
+              title: 'Actions', key: 'actions', width: 80,
+              render: (_: any, r: any) => (
+                <Button size="small" danger onClick={() => handleRemovePmEmployee(r.id)}>Retirer</Button>
+              ),
+            }] : []),
+          ]} />
+        </div>
+      ),
+    } : null;
+
+    const salaryTab = isMorale ? {
+      key: 'salary',
+      label: <span><DollarOutlined /> Virements salaires</span>,
+      children: (
+        <div>
+          {canCreate('COMPANIES') && (
+            <Button type="primary" icon={<SendOutlined />} style={{ marginBottom: 16 }}
+              onClick={openPmSalaryModal} disabled={pmEmployees.length === 0}>
+              Nouveau virement de salaires
+            </Button>
+          )}
+          {pmEmployees.length === 0 && (
+            <Alert type="info" showIcon message="Ajoutez d'abord des employes dans l'onglet 'Employes' pour pouvoir effectuer des virements." style={{ marginBottom: 16 }} />
+          )}
+          <Table dataSource={pmSalaryHistory} rowKey="id" size="small" columns={[
+            { title: 'Reference', dataIndex: 'reference' },
+            { title: 'Employes', dataIndex: 'totalEmployees' },
+            { title: 'Montant total', dataIndex: 'totalAmount', render: (v: any) => `${Number(v).toLocaleString('fr-FR')} FCFA` },
+            { title: 'Frais', dataIndex: 'fees', render: (v: any) => `${Number(v).toLocaleString('fr-FR')} F` },
+            { title: 'Statut', dataIndex: 'status', render: (s: string) => <Tag color={s === 'COMPLETED' ? 'green' : 'orange'}>{s}</Tag> },
+            { title: 'Date', dataIndex: 'createdAt', render: (d: string) => dayjs(d).format('DD/MM/YYYY HH:mm') },
+          ]} />
+        </div>
+      ),
+    } : null;
+
+    return [infoTab, accountsTab, creditsTab, mandatairesTab, employeesTab, salaryTab, mandataireDeTab, qrTab].filter(Boolean);
   };
 
   return (
@@ -2124,6 +2343,151 @@ export default function Clients() {
             </Card>
           </Col>
         </Row>
+      </Modal>
+
+      {/* Modal ajout employe PM */}
+      <Modal
+        title={`Ajouter un employe — ${selectedClient?.raisonSociale || ''}`}
+        open={addPmEmployeeVisible}
+        onCancel={() => setAddPmEmployeeVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Alert type="info" showIcon message="Recherchez un client personne physique pour le rattacher comme employe." style={{ marginBottom: 16 }} />
+        <Form form={pmEmployeeForm} layout="inline" style={{ marginBottom: 16 }}>
+          <Form.Item name="searchQuery" style={{ flex: 1 }}>
+            <Input placeholder="Nom, telephone ou N° client..." onPressEnter={handleSearchPmEmployee} />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" onClick={handleSearchPmEmployee} loading={pmEmployeeSearching}>Rechercher</Button>
+          </Form.Item>
+        </Form>
+        {pmEmployeeSearchResults.length > 0 && (
+          <Table dataSource={pmEmployeeSearchResults} rowKey="id" size="small" pagination={false} columns={[
+            { title: 'Nom', key: 'name', render: (_: any, r: any) => `${r.firstName || ''} ${r.lastName || ''}`.trim() },
+            { title: 'N° Client', dataIndex: 'clientNumber' },
+            { title: 'Telephone', dataIndex: 'phone' },
+            { title: '', key: 'action', width: 100,
+              render: (_: any, r: any) => (
+                <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => handleAddPmEmployee(r.id)}>Ajouter</Button>
+              ),
+            },
+          ]} />
+        )}
+      </Modal>
+
+      {/* Modal virement salaires PM */}
+      <Modal
+        title={`Virement de salaires — ${selectedClient?.raisonSociale || ''}`}
+        open={pmSalaryVisible}
+        onCancel={() => setPmSalaryVisible(false)}
+        onOk={handleProcessPmSalary}
+        confirmLoading={pmSalarySubmitting}
+        okText="Executer le virement"
+        width={600}
+      >
+        <Alert type="warning" showIcon message="Les montants seront credites sur les comptes courants des employes." style={{ marginBottom: 16 }} />
+        <Table
+          dataSource={pmSalaryPayments}
+          rowKey="employeePhone"
+          size="small"
+          pagination={false}
+          columns={[
+            { title: 'Employe', dataIndex: 'employeeName' },
+            { title: 'Telephone', dataIndex: 'employeePhone' },
+            { title: 'Montant (FCFA)', key: 'amount', width: 180,
+              render: (_: any, r: any, index: number) => (
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={10000}
+                  value={r.amount}
+                  formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+                  parser={v => v!.replace(/\s/g, '') as any}
+                  onChange={val => {
+                    const updated = [...pmSalaryPayments];
+                    updated[index].amount = val || 0;
+                    setPmSalaryPayments(updated);
+                  }}
+                />
+              ),
+            },
+          ]}
+          summary={() => {
+            const total = pmSalaryPayments.reduce((sum, p) => sum + p.amount, 0);
+            const fees = Math.round(total * 0.005);
+            return (
+              <Table.Summary fixed>
+                <Table.Summary.Row style={{ fontWeight: 700 }}>
+                  <Table.Summary.Cell index={0} colSpan={2}>Total + Frais (0.5%)</Table.Summary.Cell>
+                  <Table.Summary.Cell index={2}>{total.toLocaleString('fr-FR')} + {fees.toLocaleString('fr-FR')} = {(total + fees).toLocaleString('fr-FR')} FCFA</Table.Summary.Cell>
+                </Table.Summary.Row>
+              </Table.Summary>
+            );
+          }}
+        />
+      </Modal>
+
+      {/* Modal gestion numeros de telephone du compte */}
+      <Modal
+        title={<span><MobileOutlined /> Numeros de telephone — Compte {phoneAccount?.accountNumber}</span>}
+        open={phoneModalOpen}
+        onCancel={() => setPhoneModalOpen(false)}
+        confirmLoading={savingPhones}
+        onOk={async () => {
+          setSavingPhones(true);
+          try {
+            await api.patch(`/accounts/${phoneAccount.id}/phone-numbers`, { phoneNumbers: phoneList });
+            message.success('Numeros mis a jour');
+            setPhoneModalOpen(false);
+            // Rafraichir le client pour voir les changements
+            if (selectedClient) {
+              const r = await api.get(`/clients/${selectedClient.id}`);
+              setSelectedClient(r.data);
+            }
+          } catch {
+            message.error('Erreur lors de la sauvegarde');
+          } finally {
+            setSavingPhones(false);
+          }
+        }}
+        okText="Enregistrer"
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Text type="secondary">Ajoutez les numeros de telephone associes a ce compte (Mobile Money, notifications, etc.)</Text>
+        </div>
+        <Space.Compact style={{ width: '100%', marginBottom: 12 }}>
+          <Input
+            placeholder="Ex: 237670000000"
+            value={phoneInput}
+            onChange={e => setPhoneInput(e.target.value)}
+            onPressEnter={() => {
+              const cleaned = phoneInput.replace(/[^0-9+]/g, '');
+              if (cleaned.length >= 9 && !phoneList.includes(cleaned)) {
+                setPhoneList([...phoneList, cleaned]);
+                setPhoneInput('');
+              }
+            }}
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+            const cleaned = phoneInput.replace(/[^0-9+]/g, '');
+            if (cleaned.length >= 9 && !phoneList.includes(cleaned)) {
+              setPhoneList([...phoneList, cleaned]);
+              setPhoneInput('');
+            }
+          }}>Ajouter</Button>
+        </Space.Compact>
+        {phoneList.length === 0 ? (
+          <Alert type="info" message="Aucun numero associe a ce compte" showIcon />
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {phoneList.map((p, i) => (
+              <Tag key={i} color="blue" closable onClose={() => setPhoneList(phoneList.filter((_, idx) => idx !== i))} style={{ fontSize: 13, padding: '4px 8px' }}>
+                <MobileOutlined /> {p}
+              </Tag>
+            ))}
+          </div>
+        )}
       </Modal>
     </div>
   );

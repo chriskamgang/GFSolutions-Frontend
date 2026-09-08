@@ -3,17 +3,17 @@ import {
   Card, Table, Button, Tag, Space, Typography, Row, Col,
   Modal, Form, Input, Select, InputNumber, message,
   Alert, Descriptions, Avatar, Checkbox, Divider, Badge,
-  Dropdown, Steps,
+  Dropdown, Steps, Tooltip,
 } from 'antd';
 import {
   PlusOutlined, SwapOutlined, UserOutlined,
   SafetyOutlined, ExclamationCircleOutlined, BankOutlined,
   CheckCircleOutlined, DownloadOutlined, FilePdfOutlined,
-  FileProtectOutlined, MobileOutlined,
+  FileProtectOutlined, MobileOutlined, RollbackOutlined, PrinterOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
+import { exportToExcel, exportToPdf, generateReceipt, generateBordereau, generateBlankBordereau, generateSchoolFeeSlip } from '../utils/exportUtils';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -27,7 +27,8 @@ const ROLES_LABELS: Record<string, string> = {
 };
 
 export default function Transactions() {
-  const { canDeposit, isReadOnly } = usePermissions();
+  const { canDeposit, isReadOnly, role } = usePermissions();
+  const isDepotOnly = role === 'CAISSIER_DEPOT';
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,6 +62,30 @@ export default function Transactions() {
   const [selectedSignataire, setSelectedSignataire] = useState<string | null>(null);
   const [identiteVerifiee, setIdentiteVerifiee] = useState(false);
   const [pendingTxValues, setPendingTxValues] = useState<any>(null);
+  const [reverseReason, setReverseReason] = useState('');
+  const [reversingId, setReversingId] = useState<string | null>(null);
+  const [reverseModalOpen, setReverseModalOpen] = useState(false);
+  const [reverseTarget, setReverseTarget] = useState<any>(null);
+
+  const handleReverse = async () => {
+    if (!reverseTarget || !reverseReason.trim()) {
+      message.warning('Veuillez saisir le motif de la contre-passation');
+      return;
+    }
+    setReversingId(reverseTarget.id);
+    try {
+      const { data } = await api.post(`/transactions/${reverseTarget.id}/reverse`, { reason: reverseReason });
+      message.success(data.message || 'Transaction contre-passee avec succes');
+      setReverseModalOpen(false);
+      setReverseReason('');
+      setReverseTarget(null);
+      fetchTransactions();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Erreur lors de la contre-passation');
+    } finally {
+      setReversingId(null);
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -184,6 +209,48 @@ export default function Transactions() {
     setModalOpen(true);
   };
 
+  const handlePrintBordereau = () => {
+    const values = form.getFieldsValue();
+    const accountId = txType === 'withdrawal' ? values.fromAccountId : values.fromAccountId;
+    const account = accounts.find((a: any) => a.id === accountId);
+    if (!account) {
+      message.warning('Veuillez d\'abord selectionner un compte');
+      return;
+    }
+    const amount = values.amount;
+    if (!amount || amount <= 0) {
+      message.warning('Veuillez saisir un montant');
+      return;
+    }
+    const clientName = account.client
+      ? (account.client.clientType === 'MORALE' ? account.client.raisonSociale : `${account.client.firstName} ${account.client.lastName}`)
+      : '-';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const typeLabel = account.type === 'CURRENT' ? 'Compte Courant' : account.type === 'SAVINGS' ? 'Compte Epargne' : account.type === 'SALARY' ? 'Compte Salaire' : account.type === 'SCOLARITE' ? 'Compte Scolarite' : account.type;
+
+    const bordData: any = {
+      type: txType === 'transfer' ? 'VIREMENT' : 'RETRAIT',
+      clientName,
+      accountNumber: account.accountNumber,
+      accountType: typeLabel,
+      amount,
+      amountInWords: '',
+      agencyName: user.agency?.name || 'GFS',
+      cashierName: user.firstName ? `${user.firstName} ${user.lastName}` : 'Caissier',
+      description: values.description,
+    };
+
+    if (txType === 'transfer' && values.toAccountId) {
+      const toAcc = accounts.find((a: any) => a.id === values.toAccountId);
+      bordData.beneficiaryName = toAcc?.client
+        ? (toAcc.client.clientType === 'MORALE' ? toAcc.client.raisonSociale : `${toAcc.client.firstName} ${toAcc.client.lastName}`)
+        : '-';
+      bordData.beneficiaryAccount = toAcc?.accountNumber || '-';
+    }
+
+    generateBordereau(bordData);
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -254,6 +321,11 @@ export default function Transactions() {
       if (txType === 'deposit') {
         endpoint = '/transactions/deposit';
         body.toAccountId = values.toAccountId;
+        // Ajouter infos etudiant dans la description pour les comptes SCOLARITE
+        const depositAccount = accounts.find((a: any) => a.id === values.toAccountId);
+        if (depositAccount?.type === 'SCOLARITE' && values.studentName) {
+          body.description = `Scolarite - ${values.studentName} - ${values.studentClass || ''}${values.description ? ' | ' + values.description : ''}`;
+        }
       } else if (txType === 'withdrawal') {
         endpoint = '/transactions/withdrawal';
         body.fromAccountId = values.fromAccountId;
@@ -269,12 +341,54 @@ export default function Transactions() {
         body.mobileMoneyPhone = values.mobileMoneyPhone;
       }
 
-      await api.post(endpoint, body);
+      const { data: txResult } = await api.post(endpoint, body);
       message.success('Transaction effectuee avec succes');
       setModalOpen(false);
       form.resetFields();
       fetchTransactions();
       fetchAccounts();
+
+      // Generer le recu PDF
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const accountId = txType === 'deposit' ? values.toAccountId : values.fromAccountId;
+      const account = accounts.find((a: any) => a.id === accountId);
+      const clientName = account?.client
+        ? (account.client.clientType === 'MORALE' ? account.client.raisonSociale : `${account.client.firstName} ${account.client.lastName}`)
+        : '-';
+      const receiptType = txType === 'deposit' ? 'DEPOT' : txType === 'withdrawal' ? 'RETRAIT' : 'VIREMENT';
+
+      Modal.confirm({
+        title: 'Imprimer le recu',
+        content: `Voulez-vous generer le recu de ${receiptType.toLowerCase()} ?`,
+        okText: 'Generer PDF',
+        cancelText: 'Non merci',
+        onOk: () => {
+          const receiptData: any = {
+            type: receiptType,
+            reference: txResult.reference || txResult.id || `TX-${Date.now()}`,
+            amount: values.amount,
+            fees: Number(txResult.fees) || 0,
+            date: txResult.createdAt || new Date().toISOString(),
+            clientName,
+            accountNumber: account?.accountNumber || '-',
+            agencyName: user.agency?.name || 'GFS',
+            cashierName: user.firstName ? `${user.firstName} ${user.lastName}` : 'Caissier',
+            description: body.description || values.description,
+          };
+          // Ajouter infos etudiant au recu pour SCOLARITE
+          if (account?.type === 'SCOLARITE' && values.studentName) {
+            receiptData.description = `Etudiant: ${values.studentName} | Classe: ${values.studentClass || '-'}${values.description ? ' | ' + values.description : ''}`;
+          }
+          if (txType === 'transfer' && values.toAccountId) {
+            const toAcc = accounts.find((a: any) => a.id === values.toAccountId);
+            receiptData.beneficiaryName = toAcc?.client
+              ? (toAcc.client.clientType === 'MORALE' ? toAcc.client.raisonSociale : `${toAcc.client.firstName} ${toAcc.client.lastName}`)
+              : '-';
+            receiptData.beneficiaryAccount = toAcc?.accountNumber || '-';
+          }
+          generateReceipt(receiptData);
+        },
+      });
     } catch (err: any) {
       const msg = err.response?.data?.message;
       message.error(Array.isArray(msg) ? msg.join(', ') : msg || 'Erreur lors de la transaction');
@@ -344,6 +458,7 @@ export default function Transactions() {
         );
       },
     },
+    { title: 'Description', dataIndex: 'description', key: 'description', ellipsis: true },
     {
       title: 'Montant (FCFA)', dataIndex: 'amount', key: 'amount', align: 'right' as const,
       render: (v: any, r: any) => (
@@ -374,10 +489,23 @@ export default function Transactions() {
     {
       title: 'Statut', dataIndex: 'status', key: 'status',
       render: (s: string) => (
-        <Tag color={s === 'COMPLETED' ? 'green' : s === 'PENDING' ? 'orange' : 'red'}>
-          {s === 'COMPLETED' ? 'Effectue' : s === 'PENDING' ? 'En attente' : 'Echoue'}
+        <Tag color={s === 'COMPLETED' ? 'green' : s === 'PENDING' ? 'orange' : s === 'CANCELLED' ? 'default' : 'red'}>
+          {s === 'COMPLETED' ? 'Effectue' : s === 'PENDING' ? 'En attente' : s === 'CANCELLED' ? 'Annule' : 'Echoue'}
         </Tag>
       ),
+    },
+    {
+      title: 'Actions', key: 'actions', width: 80,
+      render: (_: any, r: any) => r.status === 'COMPLETED' && !r.reference?.startsWith('REV-') ? (
+        <Tooltip title="Contre-passer (annuler)">
+          <Button
+            type="text"
+            danger
+            icon={<RollbackOutlined />}
+            onClick={() => { setReverseTarget(r); setReverseModalOpen(true); }}
+          />
+        </Tooltip>
+      ) : null,
     },
   ];
 
@@ -392,6 +520,7 @@ export default function Transactions() {
       const c = acc?.client;
       return c ? (c.clientType === 'MORALE' ? c.raisonSociale : `${c.firstName} ${c.lastName}`) : '';
     }},
+    { title: 'Description', key: 'description' },
     { title: 'Montant (FCFA)', key: 'amount', format: (v: any) => Number(v).toLocaleString('fr-FR') },
     { title: 'Frais', key: 'fees', format: (v: any) => Number(v || 0).toLocaleString('fr-FR') },
     { title: 'Statut', key: 'status', format: (v: any) => v === 'COMPLETED' ? 'Effectue' : v },
@@ -414,32 +543,55 @@ export default function Transactions() {
           </Col>
           <Col>
             <Space>
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'retrait', label: 'Bordereaux de retrait (x3)', icon: <PrinterOutlined />, onClick: () => generateBlankBordereau('RETRAIT', 3) },
+                    { key: 'virement', label: 'Bordereaux de virement (x3)', icon: <PrinterOutlined />, onClick: () => generateBlankBordereau('VIREMENT', 3) },
+                    { key: 'depot', label: 'Bordereaux de depot (x3)', icon: <PrinterOutlined />, onClick: () => generateBlankBordereau('DEPOT', 3) },
+                    { type: 'divider' },
+                    { key: 'retrait10', label: 'Retrait x10', onClick: () => generateBlankBordereau('RETRAIT', 10) },
+                    { key: 'virement10', label: 'Virement x10', onClick: () => generateBlankBordereau('VIREMENT', 10) },
+                    { key: 'depot10', label: 'Depot x10', onClick: () => generateBlankBordereau('DEPOT', 10) },
+                    { type: 'divider' },
+                    { key: 'sco-insam', label: 'Scolarite INSAM (x10)', icon: <PrinterOutlined />, onClick: () => generateSchoolFeeSlip({ schoolName: 'INSAM', accountNumber: '01100000137', copies: 10 }) },
+                    { key: 'sco-iste', label: 'Scolarite ISTE (x10)', icon: <PrinterOutlined />, onClick: () => generateSchoolFeeSlip({ schoolName: 'ISTE', accountNumber: '01100000138', copies: 10 }) },
+                    { key: 'sco-issas', label: 'Scolarite ISSAS (x10)', icon: <PrinterOutlined />, onClick: () => generateSchoolFeeSlip({ schoolName: 'ISSAS', accountNumber: '01100000139', copies: 10 }) },
+                  ],
+                }}
+              >
+                <Button icon={<PrinterOutlined />}>Bordereaux vierges</Button>
+              </Dropdown>
               <Button icon={<DownloadOutlined />} onClick={handleExportExcel}>Excel</Button>
               <Button icon={<FilePdfOutlined />} onClick={handleExportPdf}>PDF</Button>
               {canDeposit && !isReadOnly && (
                 <>
                   <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenTx('deposit')}>Depot</Button>
-                  <Dropdown
-                    menu={{
-                      items: [
-                        {
-                          key: 'cash',
-                          label: 'Retrait especes',
-                          icon: <SwapOutlined />,
-                          onClick: () => handleOpenTxWithReset('withdrawal'),
-                        },
-                        {
-                          key: 'cheque',
-                          label: 'Retrait par cheque',
-                          icon: <FileProtectOutlined />,
-                          onClick: handleOpenRetraitCheque,
-                        },
-                      ],
-                    }}
-                  >
-                    <Button icon={<SwapOutlined />}>Retrait</Button>
-                  </Dropdown>
-                  <Button onClick={() => handleOpenTx('transfer')}>Transfert</Button>
+                  {!isDepotOnly && (
+                    <>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            {
+                              key: 'cash',
+                              label: 'Retrait especes',
+                              icon: <SwapOutlined />,
+                              onClick: () => handleOpenTxWithReset('withdrawal'),
+                            },
+                            {
+                              key: 'cheque',
+                              label: 'Retrait par cheque',
+                              icon: <FileProtectOutlined />,
+                              onClick: handleOpenRetraitCheque,
+                            },
+                          ],
+                        }}
+                      >
+                        <Button icon={<SwapOutlined />}>Retrait</Button>
+                      </Dropdown>
+                      <Button onClick={() => handleOpenTx('transfer')}>Transfert</Button>
+                    </>
+                  )}
                   <Dropdown
                     menu={{
                       items: [
@@ -476,18 +628,50 @@ export default function Transactions() {
       <Modal
         title={txType === 'deposit' ? 'Nouveau depot' : txType === 'withdrawal' ? 'Nouveau retrait' : 'Nouveau transfert'}
         open={modalOpen}
-        onOk={handleSubmit}
         onCancel={() => { setModalOpen(false); setWithdrawalClientInfo(null); }}
-        okText="Valider"
-        cancelText="Annuler"
         width={txType === 'withdrawal' ? 700 : 600}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div>
+              {(txType === 'withdrawal' || txType === 'transfer') && (
+                <Button icon={<FilePdfOutlined />} onClick={handlePrintBordereau} style={{ borderColor: '#F5A623', color: '#F5A623' }}>
+                  Bordereau {txType === 'transfer' ? 'de virement' : 'de retrait'}
+                </Button>
+              )}
+            </div>
+            <Space>
+              <Button onClick={() => { setModalOpen(false); setWithdrawalClientInfo(null); }}>Annuler</Button>
+              <Button type="primary" onClick={handleSubmit}>Valider</Button>
+            </Space>
+          </div>
+        }
       >
         <Form form={form} layout="vertical">
           {(txType === 'deposit') && (
-            <Form.Item name="toAccountId" label="Compte a crediter" rules={[{ required: true }]}>
-              <Select showSearch placeholder="Chercher un compte..." optionFilterProp="label"
-                options={accounts.map(a => ({ value: a.id, label: getAccountLabel(a) }))} />
-            </Form.Item>
+            <>
+              <Form.Item name="toAccountId" label="Compte a crediter" rules={[{ required: true }]}>
+                <Select showSearch placeholder="Chercher un compte..." optionFilterProp="label"
+                  options={accounts.map(a => ({ value: a.id, label: getAccountLabel(a) }))} />
+              </Form.Item>
+              {(() => {
+                const selectedAccountId = form.getFieldValue('toAccountId');
+                const selectedAccount = accounts.find((a: any) => a.id === selectedAccountId);
+                if (selectedAccount?.type === 'SCOLARITE') {
+                  return (
+                    <div style={{ background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                      <Text strong style={{ color: '#d48806', display: 'block', marginBottom: 8 }}>Informations Etudiant</Text>
+                      <Form.Item name="studentName" label="Nom et Prenom(s) de l'etudiant" rules={[{ required: true, message: 'Le nom de l\'etudiant est requis' }]}>
+                        <Input placeholder="Nom complet de l'etudiant" />
+                      </Form.Item>
+                      <Form.Item name="studentClass" label="Classe / Specialite / Niveau" rules={[{ required: true, message: 'La classe est requise' }]}>
+                        <Input placeholder="Ex: Licence 2 Informatique" />
+                      </Form.Item>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </>
           )}
           {(txType === 'withdrawal') && (
             <>
@@ -1130,6 +1314,46 @@ export default function Transactions() {
               </Checkbox>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Modal contre-passation */}
+      <Modal
+        title={<span><RollbackOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />Contre-passation de transaction</span>}
+        open={reverseModalOpen}
+        onCancel={() => { setReverseModalOpen(false); setReverseReason(''); setReverseTarget(null); }}
+        onOk={handleReverse}
+        okText="Confirmer la contre-passation"
+        okButtonProps={{ danger: true, loading: !!reversingId }}
+        cancelText="Annuler"
+      >
+        {reverseTarget && (
+          <>
+            <Alert
+              type="warning"
+              showIcon
+              message="Cette action est irreversible"
+              description="La contre-passation va annuler cette transaction et retablir les soldes des comptes concernes."
+              style={{ marginBottom: 16 }}
+            />
+            <Descriptions bordered column={1} size="small" style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="Reference">{reverseTarget.reference}</Descriptions.Item>
+              <Descriptions.Item label="Type">{reverseTarget.type}</Descriptions.Item>
+              <Descriptions.Item label="Montant">{Number(reverseTarget.amount).toLocaleString('fr-FR')} FCFA</Descriptions.Item>
+              <Descriptions.Item label="Frais">{Number(reverseTarget.fees || 0).toLocaleString('fr-FR')} FCFA</Descriptions.Item>
+              <Descriptions.Item label="Date">{dayjs(reverseTarget.createdAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+            </Descriptions>
+            <div>
+              <Text strong>Motif de la contre-passation *</Text>
+              <Input.TextArea
+                rows={3}
+                placeholder="Ex: Erreur de montant, mauvais compte credite..."
+                value={reverseReason}
+                onChange={(e) => setReverseReason(e.target.value)}
+                style={{ marginTop: 8 }}
+              />
+            </div>
+          </>
         )}
       </Modal>
     </div>

@@ -10,6 +10,7 @@ import {
   MessageOutlined, SendOutlined, EyeInvisibleOutlined, EyeOutlined,
   WhatsAppOutlined, ReloadOutlined, DisconnectOutlined, MobileOutlined,
   CloudServerOutlined, DownloadOutlined, UploadOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -1611,6 +1612,131 @@ function KPayTopUpSection({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+// ==================== ELGIOPAY (Paiement factures) ====================
+function ElgioPayTab({ canEdit }: { canEdit: boolean }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [config, setConfig] = useState<any>(null);
+  const [form] = Form.useForm();
+
+  const fetchConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/settings/elgiopay');
+      setConfig(res.data);
+      form.setFieldsValue({
+        baseUrl: res.data.baseUrl || 'https://sandbox-api.elgiopay.com',
+        enabled: res.data.enabled,
+        mode: res.data.mode || 'sandbox',
+      });
+    } catch {
+      message.error('Erreur chargement config ElgioPay');
+    }
+    setLoading(false);
+  }, [form]);
+
+  useEffect(() => { fetchConfig(); }, [fetchConfig]);
+
+  const handleSave = async (values: any) => {
+    setSaving(true);
+    try {
+      await api.post('/settings/elgiopay', {
+        secretToken: values.secretToken || undefined,
+        baseUrl: values.baseUrl,
+        enabled: values.enabled,
+        mode: values.mode,
+      });
+      message.success('Configuration ElgioPay sauvegardee !');
+      fetchConfig();
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Erreur sauvegarde');
+    }
+    setSaving(false);
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>;
+
+  return (
+    <Card>
+      <Alert type="info" showIcon style={{ marginBottom: 20 }}
+        message="ElgioPay permet de payer les factures ENEO, CamWater, Canal+ et Camtel directement depuis le logiciel."
+        description="Creez un compte sur elgiopay.com, obtenez votre Secret Token depuis le dashboard ElgioPay, puis configurez-le ici." />
+
+      <Row gutter={16} style={{ marginBottom: 20 }}>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic
+              title="Statut"
+              value={config?.secretTokenConfigured ? 'Configure' : 'Non configure'}
+              valueStyle={{ color: config?.secretTokenConfigured ? '#27ae60' : '#e74c3c', fontSize: 16 }}
+              prefix={config?.secretTokenConfigured ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic
+              title="Mode"
+              value={config?.mode === 'production' ? 'Production' : 'Sandbox (test)'}
+              valueStyle={{ color: config?.mode === 'production' ? '#27ae60' : '#F5A623', fontSize: 16 }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card size="small">
+            <Statistic
+              title="Actif"
+              value={config?.enabled ? 'Oui' : 'Non'}
+              valueStyle={{ color: config?.enabled ? '#27ae60' : '#999', fontSize: 16 }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Divider />
+
+      <Form form={form} layout="vertical" onFinish={handleSave}
+        initialValues={{ mode: 'sandbox', enabled: true, baseUrl: 'https://sandbox-api.elgiopay.com' }}>
+
+        <Form.Item name="enabled" label="Activer ElgioPay" valuePropName="checked">
+          <Switch disabled={!canEdit} checkedChildren="Actif" unCheckedChildren="Inactif" />
+        </Form.Item>
+
+        <Form.Item name="mode" label="Mode">
+          <Select disabled={!canEdit} onChange={(v) => {
+            if (v === 'production') {
+              form.setFieldsValue({ baseUrl: 'https://api.elgiopay.com' });
+            } else {
+              form.setFieldsValue({ baseUrl: 'https://sandbox-api.elgiopay.com' });
+            }
+          }}>
+            <Select.Option value="sandbox">Sandbox (test)</Select.Option>
+            <Select.Option value="production">Production (live)</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item name="secretToken" label={
+          <Space>Secret Token {config?.secretTokenConfigured && <Tag color="green">Configure</Tag>}</Space>
+        } extra="Laissez vide pour conserver le token actuel">
+          <Input.Password disabled={!canEdit} placeholder={config?.secretTokenConfigured ? '••••••••••••••••' : 'Collez votre secret token ElgioPay'} />
+        </Form.Item>
+
+        <Form.Item name="baseUrl" label="URL de base API">
+          <Input disabled={!canEdit} />
+        </Form.Item>
+
+        {canEdit && (
+          <Button type="primary" htmlType="submit" loading={saving}
+            style={{ background: '#1B2A4A', borderColor: '#1B2A4A' }}
+            icon={<CheckCircleOutlined />}>
+            Sauvegarder la configuration
+          </Button>
+        )}
+      </Form>
+    </Card>
+  );
+}
+
 // ===================== PAGE PRINCIPALE =====================
 // ==================== BACKUP / RESTAURATION ====================
 function BackupTab({ canEdit }: { canEdit: boolean }) {
@@ -1785,6 +1911,11 @@ export default function Settings() {
       key: 'kpay',
       label: <span><MobileOutlined /> KPay Mobile Money</span>,
       children: <KPayTab canEdit={canEdit} />,
+    },
+    {
+      key: 'elgiopay',
+      label: <span><WalletOutlined style={{ color: '#F5A623' }} /> ElgioPay Factures</span>,
+      children: <ElgioPayTab canEdit={canEdit} />,
     },
     {
       key: 'security',

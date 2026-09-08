@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Badge, Typography, Tag, Tooltip, List, Empty, Button as AntButton, Modal, Descriptions, Form, Input, message } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Badge, Typography, Tag, Tooltip, List, Empty, Button as AntButton, Modal, Descriptions, Form, Input, Drawer, Grid, message } from 'antd';
 import {
   DashboardOutlined,
   TeamOutlined,
@@ -32,6 +32,7 @@ import {
   MobileOutlined,
   AlertOutlined,
   UsergroupAddOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -45,9 +46,13 @@ dayjs.locale('fr');
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 export default function MainLayout() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.lg; // < 992px
   const [collapsed, setCollapsed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [pwdForm] = Form.useForm();
   const [changingPwd, setChangingPwd] = useState(false);
@@ -126,7 +131,7 @@ export default function MainLayout() {
     const path = location.pathname;
     const submenuMap: Record<string, string> = {
       '/clients': 'sub-clients',
-      '/companies': 'sub-clients',
+      '/clients?type=MORALE': 'sub-clients',
       '/accounts': 'sub-operations',
       '/transactions': 'sub-operations',
       '/mobile-money': 'sub-operations',
@@ -141,6 +146,7 @@ export default function MainLayout() {
       '/audit': 'sub-admin',
       '/settings': 'sub-admin',
       '/checkbooks': 'sub-operations',
+      '/account-statements': 'sub-operations',
       '/tontines': 'sub-epargne',
       '/savings-goals': 'sub-epargne',
       '/notifications': 'sub-admin',
@@ -190,7 +196,7 @@ export default function MainLayout() {
           label: 'Membres',
           children: [
             { key: '/clients', icon: <UserOutlined />, label: 'Personnes physiques' },
-            { key: '/companies', icon: <IdcardOutlined />, label: 'Personnes morales' },
+            { key: '/clients?type=MORALE', icon: <IdcardOutlined />, label: 'Personnes morales' },
             { key: '/solidarity-groups', icon: <UsergroupAddOutlined />, label: 'Groupes solidaires' },
           ],
         },
@@ -207,6 +213,7 @@ export default function MainLayout() {
         { key: '/mobile-money', icon: <MobileOutlined />, label: 'Mobile Money' },
         { key: '/bill-payments', icon: <ThunderboltOutlined />, label: 'Paiements Factures' },
         { key: '/checkbooks', icon: <FileProtectOutlined />, label: 'Chequiers' },
+        { key: '/account-statements', icon: <FileTextOutlined />, label: 'Releves & Historique' },
       ],
     },
 
@@ -285,6 +292,7 @@ export default function MainLayout() {
   const handleMenuClick = ({ key }: { key: string }) => {
     if (key.startsWith('/')) {
       navigate(key);
+      if (isMobile) setDrawerOpen(false);
     }
   };
 
@@ -321,66 +329,84 @@ export default function MainLayout() {
     },
   };
 
+  const siderContent = (
+    <>
+      <div className="logo-container">
+        {collapsed && !isMobile ? (
+          <span className="logo-text-collapsed">GFS</span>
+        ) : (
+          <span className="logo-text">Global Financial Solution</span>
+        )}
+      </div>
+
+      {(!collapsed || isMobile) && user && (
+        <div style={{ padding: '8px 16px 16px', textAlign: 'center' }}>
+          <Avatar
+            size={48}
+            icon={<UserOutlined />}
+            style={{ backgroundColor: '#F5A623', marginBottom: 8 }}
+          />
+          <div>
+            <Text style={{ color: '#fff', fontSize: 13, display: 'block' }}>
+              {user.firstName} {user.lastName}
+            </Text>
+            <Text style={{ color: '#ffffffaa', fontSize: 11 }}>
+              {user.role} - {user.agency}
+            </Text>
+          </div>
+        </div>
+      )}
+
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        openKeys={collapsed && !isMobile ? [] : openKeys}
+        onOpenChange={handleOpenChange}
+        items={menuItems}
+        onClick={handleMenuClick}
+        style={{ borderRight: 0 }}
+      />
+    </>
+  );
+
   return (
     <>
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        width={260}
-        style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          zIndex: 10,
-        }}
-      >
-        <div className="logo-container">
-          {collapsed ? (
-            <span className="logo-text-collapsed">GFS</span>
-          ) : (
-            <span className="logo-text">Global Financial Solution</span>
-          )}
-        </div>
+      {isMobile ? (
+        <Drawer
+          placement="left"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          width={280}
+          styles={{ body: { padding: 0, background: '#001529' }, header: { display: 'none' } }}
+        >
+          {siderContent}
+        </Drawer>
+      ) : (
+        <Sider
+          trigger={null}
+          collapsible
+          collapsed={collapsed}
+          width={260}
+          style={{
+            overflow: 'auto',
+            height: '100vh',
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 10,
+          }}
+        >
+          {siderContent}
+        </Sider>
+      )}
 
-        {!collapsed && user && (
-          <div style={{ padding: '8px 16px 16px', textAlign: 'center' }}>
-            <Avatar
-              size={48}
-              icon={<UserOutlined />}
-              style={{ backgroundColor: '#F5A623', marginBottom: 8 }}
-            />
-            <div>
-              <Text style={{ color: '#fff', fontSize: 13, display: 'block' }}>
-                {user.firstName} {user.lastName}
-              </Text>
-              <Text style={{ color: '#ffffffaa', fontSize: 11 }}>
-                {user.role} - {user.agency}
-              </Text>
-            </div>
-          </div>
-        )}
-
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          openKeys={collapsed ? [] : openKeys}
-          onOpenChange={handleOpenChange}
-          items={menuItems}
-          onClick={handleMenuClick}
-          style={{ borderRight: 0 }}
-        />
-      </Sider>
-
-      <Layout style={{ marginLeft: collapsed ? 80 : 260, transition: 'all 0.2s' }}>
+      <Layout style={{ marginLeft: isMobile ? 0 : (collapsed ? 80 : 260), transition: 'all 0.2s' }}>
         <Header
           style={{
-            padding: '0 24px',
+            padding: isMobile ? '0 12px' : '0 24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -392,7 +418,12 @@ export default function MainLayout() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            {collapsed ? (
+            {isMobile ? (
+              <MenuUnfoldOutlined
+                onClick={() => setDrawerOpen(true)}
+                style={{ fontSize: 20, cursor: 'pointer' }}
+              />
+            ) : collapsed ? (
               <MenuUnfoldOutlined
                 onClick={() => setCollapsed(false)}
                 style={{ fontSize: 18, cursor: 'pointer' }}
@@ -405,8 +436,8 @@ export default function MainLayout() {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            {displayTime && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 20 }}>
+            {displayTime && !isMobile && (
               <Tooltip title="Temps restant avant expiration de la session">
                 <Tag icon={<ClockCircleOutlined />} color={
                   parseInt(displayTime) <= 5 ? 'red' : parseInt(displayTime) <= 15 ? 'orange' : 'default'
@@ -420,7 +451,7 @@ export default function MainLayout() {
               placement="bottomRight"
               dropdownRender={() => (
                 <div style={{
-                  width: 360, background: '#fff', borderRadius: 8,
+                  width: isMobile ? 300 : 360, background: '#fff', borderRadius: 8,
                   boxShadow: '0 4px 16px rgba(0,0,0,0.15)', maxHeight: 420, overflow: 'auto',
                 }}>
                   <div style={{
@@ -470,15 +501,17 @@ export default function MainLayout() {
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Avatar size={32} icon={<UserOutlined />} style={{ backgroundColor: '#1B2A4A' }} />
-                <span style={{ fontSize: 13 }}>
-                  {user?.firstName} {user?.lastName}
-                </span>
+                {!isMobile && (
+                  <span style={{ fontSize: 13 }}>
+                    {user?.firstName} {user?.lastName}
+                  </span>
+                )}
               </div>
             </Dropdown>
           </div>
         </Header>
 
-        <Content style={{ margin: 24, minHeight: 280 }}>
+        <Content style={{ margin: isMobile ? 12 : 24, minHeight: 280 }}>
           <Outlet />
         </Content>
       </Layout>

@@ -358,7 +358,7 @@ function BalanceTab() {
       <Space style={{ marginBottom: 12 }}>
         <Button size="small" icon={<DownloadOutlined />} onClick={() => exportToExcel(balance, exportCols, 'balance_generale')}>Excel</Button>
         <Button size="small" icon={<FilePdfOutlined />} onClick={() => exportToPdf({
-          title: 'Balance generale', subtitle: `${balance.length} comptes — Plan comptable EMF SYSCOHADA`,
+          title: 'Balance generale', subtitle: `${balance.length} comptes — Plan comptable PCEMF COBAC`,
           columns: exportCols, data: balance, filename: 'balance_generale', orientation: 'landscape',
         })}>PDF</Button>
       </Space>
@@ -552,7 +552,7 @@ function BilanTab() {
                   { code: '', name: 'TOTAL PASSIF', solde: data.totalPassif, section: '' },
                 ];
                 exportToPdf({
-                  title: 'BILAN SYSCOHADA EMF', subtitle: `Au ${bilanDate}`,
+                  title: 'BILAN PCEMF COBAC', subtitle: `Au ${bilanDate}`,
                   columns: [{ title: 'Section', key: 'section' }, ...exportCols],
                   data: allLines, filename: `bilan_${dayjs().format('YYYYMMDD')}`,
                   summary: [
@@ -723,7 +723,7 @@ function CompteResultatTab() {
                   { code: '', name: 'TOTAL CHARGES', solde: data.totalCharges, section: '' },
                 ];
                 exportToPdf({
-                  title: 'COMPTE DE RESULTAT SYSCOHADA EMF', subtitle: periodLabel,
+                  title: 'COMPTE DE RESULTAT PCEMF COBAC', subtitle: periodLabel,
                   columns: [{ title: 'Section', key: 'section' }, ...exportCols],
                   data: allLines, filename: `compte_resultat_${dayjs().format('YYYYMMDD')}`,
                   summary: [
@@ -933,7 +933,7 @@ function FluxTresorerieTab() {
               }>Excel</Button>
               <Button size="small" icon={<FilePdfOutlined />} onClick={() =>
                 exportToPdf({
-                  title: 'FLUX DE TRESORERIE SYSCOHADA EMF', subtitle: periodLabel,
+                  title: 'FLUX DE TRESORERIE PCEMF COBAC', subtitle: periodLabel,
                   columns: exportCols, data: getAllLines(),
                   filename: `flux_tresorerie_${dayjs().format('YYYYMMDD')}`,
                   summary: [
@@ -1787,9 +1787,9 @@ export default function Accounting() {
     <div>
       <div className="page-header">
         <Title level={4} style={{ margin: 0, color: '#1B2A4A' }}>
-          <AuditOutlined /> Comptabilite SYSCOHADA
+          <AuditOutlined /> Comptabilite PCEMF COBAC
         </Title>
-        <Text type="secondary">Plan comptable EMF, journal, balance, grand livre, bilan, compte de resultat</Text>
+        <Text type="secondary">Plan comptable des Etablissements de Microfinance — journal, balance, grand livre, bilan, compte de resultat</Text>
       </div>
 
       <Card style={{ borderRadius: 8 }}>
